@@ -1,0 +1,10 @@
+# Supabase 本地开发配置
+# 参考: https://supabase.com/docs/guides/cli/config
+
+[auth]
+enabled = true
+site_url = "http://localhost:5173"
+
+[functions.stock-search]
+verify_jwt = false
+

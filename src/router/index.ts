@@ -2,12 +2,14 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 const LOGIN_COOKIE_KEY = 'login'
 const LOGIN_COOKIE_VALUE = '19910415'
+const WHITE_LIST = ['/', '/login']
 
 const Home = () => import('../views/Home.vue')
 const Login = () => import('../views/Login.vue')
 const AppLayout = () => import('../views/AppLayout.vue')
 const Watchlist = () => import('../views/Watchlist.vue')
 const Buddy = () => import('../views/Buddy.vue')
+const Search = () => import('../views/Search.vue')
 
 const parseCookies = () => {
   if (typeof document === 'undefined') {
@@ -73,17 +75,22 @@ export const router = createRouter({
         },
       ],
     },
+    {
+      path: '/search',
+      name: 'Search',
+      component: Search,
+    },
   ],
 })
 
 router.beforeEach((to) => {
   const loggedIn = hasLoginCookie()
-  
-  if (to.path === '/login' && loggedIn) {
+
+  if (loggedIn && to.path === '/login') {
     return { path: '/app' }
   }
 
-  if (to.path.startsWith('/app') && !loggedIn) {
+  if (!loggedIn && !WHITE_LIST.includes(to.path)) {
     return { path: '/login' }
   }
 

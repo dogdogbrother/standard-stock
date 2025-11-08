@@ -5,7 +5,7 @@ import App from './App.vue'
 import './styles/index.less'
 import 'vant/lib/index.css'
 
-import { Button, Form, Field, Toast, Icon, Tabbar, TabbarItem } from 'vant'
+import { Button, Form, Field, Toast, Icon, Tabbar, TabbarItem, Search, Loading } from 'vant'
 import { router } from './router'
 
 const app = createApp(App)
@@ -17,6 +17,8 @@ app.use(Toast)
 app.use(Icon)
 app.use(Tabbar)
 app.use(TabbarItem)
+app.use(Search)
+app.use(Loading)
 app.use(router)
 
 app.mount('#app')

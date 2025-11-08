@@ -1,5 +1,22 @@
+<script setup lang="ts">
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+
+const goToSearch = () => {
+  router.push('/search')
+}
+</script>
+
 <template>
   <div class="watchlist-page">
+    <van-search
+      class="watchlist-search"
+      readonly
+      placeholder="请输入股票代码 / 名称"
+      shape="round"
+      @click="goToSearch"
+    />
     <div class="placeholder-card">
       <van-icon name="star" class="icon" />
       <h2>自选列表</h2>
@@ -11,15 +28,23 @@
 <style scoped lang="less">
 .watchlist-page {
   min-height: calc(100vh - 50px);
-  padding: @spacing-xl @spacing-lg @spacing-xl;
+  padding: 10px;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  gap: @spacing-xl;
+  background-color: #ffffff;
+}
+
+.watchlist-search {
+  width: 100%;
+  display: block;
+  cursor: pointer;
 }
 
 .placeholder-card {
   width: 100%;
   max-width: 480px;
+  margin: 0 auto;
   text-align: center;
   padding: @spacing-xl;
   border-radius: @border-radius-lg;
