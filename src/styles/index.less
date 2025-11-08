@@ -1,0 +1,113 @@
+// 导入变量
+@import './variables.less';
+
+// 全局样式重置
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  font-size: @font-size-base;
+  color: @text-color;
+}
+
+// 标题标签
+h1, h2, h3, h4, h5, h6 {
+  margin: 0;
+  padding: 0;
+  font-weight: normal;
+  font-size: inherit;
+}
+
+// 列表标签
+ul, ol, li {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+// 链接标签
+a {
+  text-decoration: none;
+  color: inherit;
+  background-color: transparent;
+  
+  &:hover,
+  &:active,
+  &:focus {
+    text-decoration: none;
+    outline: none;
+  }
+}
+
+// 图片标签
+img {
+  border: none;
+  vertical-align: middle;
+  max-width: 100%;
+  height: auto;
+}
+
+// 按钮标签
+button {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  outline: none;
+  font-family: inherit;
+  font-size: inherit;
+  
+  &:focus {
+    outline: none;
+  }
+}
+
+// 输入框标签
+input, textarea, select {
+  margin: 0;
+  padding: 0;
+  border: none;
+  outline: none;
+  background: none;
+  font-family: inherit;
+  font-size: inherit;
+  
+  &:focus {
+    outline: none;
+  }
+}
+
+// 表格标签
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+// 其他常用标签
+p, dl, dt, dd, fieldset, legend {
+  margin: 0;
+  padding: 0;
+}
+
+// 清除默认的斜体
+i, em, cite, address {
+  font-style: normal;
+}
+
+// 清除默认的粗体
+b, strong {
+  font-weight: normal;
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+}
+
