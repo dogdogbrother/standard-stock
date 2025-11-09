@@ -7,6 +7,13 @@
 ```env
 # Supabase Edge Function - 股票搜索 API
 VITE_STOCK_SEARCH_API=http://localhost:54321/functions/v1/stock-search
+
+# Supabase Edge Function - 股票详情 API
+VITE_STOCK_DETAIL_API=http://localhost:54321/functions/v1/stock-detail
+
+# Supabase 数据库配置
+VITE_SUPABASE_URL=https://qixncbgvrkfjxopqqpiz.supabase.co
+VITE_SUPABASE_ANON_KEY=你的_ANON_KEY
 ```
 
 ## 生产环境
@@ -14,15 +21,23 @@ VITE_STOCK_SEARCH_API=http://localhost:54321/functions/v1/stock-search
 在部署平台（Vercel/Netlify 等）的环境变量中配置：
 
 ```env
-VITE_STOCK_SEARCH_API=https://YOUR_PROJECT_REF.supabase.co/functions/v1/stock-search
+VITE_STOCK_SEARCH_API=https://qixncbgvrkfjxopqqpiz.supabase.co/functions/v1/stock-search
+
+# Supabase Edge Function - 股票详情 API
+VITE_STOCK_DETAIL_API=https://qixncbgvrkfjxopqqpiz.supabase.co/functions/v1/stock-detail
+
+# Supabase 数据库配置
+VITE_SUPABASE_URL=https://qixncbgvrkfjxopqqpiz.supabase.co
+VITE_SUPABASE_ANON_KEY=你的_ANON_KEY
 ```
 
-将 `YOUR_PROJECT_REF` 替换为你的 Supabase 项目 ID。
-
-## 如何获取 Supabase 项目 ID
+## 如何获取 Supabase API Key
 
 1. 登录 [Supabase Dashboard](https://app.supabase.com)
-2. 选择你的项目
-3. 在 Settings > API 中查看 `Project URL`
-4. URL 格式为：`https://PROJECT_REF.supabase.co`
+2. 选择你的项目（qixncbgvrkfjxopqqpiz）
+3. 点击左侧菜单的 **Settings** ⚙️
+4. 点击 **API**
+5. 在 "Project API keys" 部分找到：
+   - **anon public**: 这是前端使用的公开密钥
+   - 复制 `anon` key 的值，添加到 `.env.local` 中
 

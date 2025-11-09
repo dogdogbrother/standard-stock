@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onBeforeUnmount, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { supabase } from '@/lib/supabase'
+import { showToast } from 'vant'
 
 interface StockItem {
   code: string
@@ -127,6 +129,46 @@ const goBack = () => {
   router.back()
 }
 
+const goToStockDetail = (item: StockItem) => {
+  router.push(`/stock/${item.exchange.toLowerCase()}/${item.code}`)
+}
+
+// 添加到自选
+const addToWatchlist = async (item: StockItem, event: Event) => {
+  // 阻止冒泡，避免触发父元素的跳转
+  event.stopPropagation()
+  
+  try {
+    const { error } = await supabase
+      .from('watchlist')
+      .insert({
+        invt: item.exchange.toLowerCase(), // 'SH' -> 'sh', 'SZ' -> 'sz'
+        stock: item.code // 直接使用字符串
+      })
+    
+    if (error) {
+      // 如果是重复添加的错误
+      if (error.code === '23505') {
+        showToast('已在自选中')
+      } else {
+        throw error
+      }
+      return
+    }
+    
+    showToast({
+      message: '添加自选成功',
+      icon: 'success'
+    })
+  } catch (err) {
+    console.error('添加到自选失败:', err)
+    showToast({
+      message: '添加失败',
+      icon: 'fail'
+    })
+  }
+}
+
 onMounted(() => {
   requestAnimationFrame(() => {
     searchRef.value?.focus?.()
@@ -168,10 +210,18 @@ const hasKeyword = computed(() => keyword.value.trim().length > 0)
         <p>{{ errorMessage }}</p>
       </div>
       <div v-else-if="results.length > 0" class="result-list">
-        <div v-for="item in results" :key="`${item.exchange}${item.code}`" class="result-item">
+        <div 
+          v-for="item in results" 
+          :key="`${item.exchange}${item.code}`" 
+          class="result-item"
+          @click="goToStockDetail(item)"
+        >
           <div class="info">
             <div class="name">{{ item.name }}</div>
             <div class="code">{{ item.exchange }}{{ item.code }}</div>
+          </div>
+          <div class="add-button" @click="addToWatchlist(item, $event)">
+            <van-icon name="plus" />
           </div>
         </div>
       </div>
@@ -199,7 +249,7 @@ const hasKeyword = computed(() => keyword.value.trim().length > 0)
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 12px 12px;
+  padding: 10px 12px 12px;
   background-color: #ffffff;
 }
 
@@ -225,7 +275,7 @@ const hasKeyword = computed(() => keyword.value.trim().length > 0)
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 16px;
+  padding: 0 16px 16px;
   background-color: #ffffff;
   overflow-y: auto;
 }
@@ -293,6 +343,31 @@ const hasKeyword = computed(() => keyword.value.trim().length > 0)
   color: #9ca3af;
 }
 
+.result-item .add-button {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: #f0f7ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+
+  :deep(.van-icon) {
+    font-size: 16px;
+    color: #3b82f6;
+  }
+
+  &:hover {
+    background-color: #e0f0ff;
+  }
+
+  &:active {
+    background-color: #d0e7ff;
+    transform: scale(0.95);
+  }
+}
 
 .empty-state .icon {
   font-size: 48px;

@@ -9,7 +9,9 @@ const Login = () => import('../views/Login.vue')
 const AppLayout = () => import('../views/AppLayout.vue')
 const Watchlist = () => import('../views/Watchlist.vue')
 const Buddy = () => import('../views/Buddy.vue')
+const Profile = () => import('../views/Profile.vue')
 const Search = () => import('../views/Search.vue')
+const StockDetail = () => import('../views/StockDetail.vue')
 
 const parseCookies = () => {
   if (typeof document === 'undefined') {
@@ -73,12 +75,22 @@ export const router = createRouter({
           name: 'Buddy',
           component: Buddy,
         },
+        {
+          path: 'profile',
+          name: 'Profile',
+          component: Profile,
+        },
       ],
     },
     {
       path: '/search',
       name: 'Search',
       component: Search,
+    },
+    {
+      path: '/stock/:invt/:stock',
+      name: 'StockDetail',
+      component: StockDetail,
     },
   ],
 })
