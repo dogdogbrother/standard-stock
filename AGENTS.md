@@ -74,3 +74,22 @@
       | f20 | 流通市值 |
       | f21 | 委比 |
       | f22 | 市净率 |
+
+## 数据库的表和字段
+
+- buddy 伙伴表
+  | 字段    | 含义 | 类型 |
+  | :---:   | :---: | 
+  | name    | 名称 | text |
+  | money   | 资产 | int4 |
+  | avatar  | 头像的url地址 | text |
+
+- money 资产表,表里只有一个数据,代表我们账户的资产的剩余金额.
+
+- position 持仓表
+  | 字段    | 含义 | 类型 |
+  | :---:   | :---: | 
+  | stock    | 股票code | text |
+  | name    | 股票名称 | text |
+  | cost   | 成本 | int4 |
+  | quantity  | 持股数量 | text |
