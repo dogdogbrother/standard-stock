@@ -22,14 +22,15 @@ jobs:
       
       - name: Call Supabase Edge Function
         run: |
-          # 调试：打印实际请求的 URL
+          # 临时测试：使用硬编码 URL
+          SUPABASE_URL="https://qixncbgvrkfjxopqqpiz.supabase.co"
+          
           echo "🔍 调试信息："
-          echo "SUPABASE_URL: ${{ secrets.SUPABASE_URL }}"
-          echo "完整 URL: ${{ secrets.SUPABASE_URL }}/functions/v1/update-used-money"
+          echo "测试 URL: ${SUPABASE_URL}/functions/v1/update-used-money"
           echo ""
           
           response=$(curl -s -w "\n%{http_code}" -X POST \
-            "${{ secrets.SUPABASE_URL }}/functions/v1/update-used-money" \
+            "${SUPABASE_URL}/functions/v1/update-used-money" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
             -H "Content-Type: application/json")
           
