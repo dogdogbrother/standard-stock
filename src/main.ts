@@ -1,4 +1,5 @@
 import { createApp } from 'vue'
+import { createPinia } from 'pinia'
 import App from './App.vue'
 
 // 全局样式
@@ -9,7 +10,9 @@ import { Button, Form, Field, Toast, Icon, Tabbar, TabbarItem, Search, Loading, 
 import { router } from './router'
 
 const app = createApp(App)
+const pinia = createPinia()
 
+app.use(pinia)
 app.use(Button)
 app.use(Form)
 app.use(Field)

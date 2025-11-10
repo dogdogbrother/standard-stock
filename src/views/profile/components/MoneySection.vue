@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { showToast } from 'vant'
+import { usePositionStore } from '@/stores/position'
 
 interface MoneyRecord {
   id: number
@@ -14,6 +15,25 @@ const moneyData = ref<MoneyRecord | null>(null)
 const error = ref('')
 const showEditDialog = ref(false)
 const editAmount = ref('')
+
+const positionStore = usePositionStore()
+
+// 计算总市值
+const totalMarketValue = computed(() => {
+  return positionStore.positionList.reduce((total, position) => {
+    if (position.currentPrice !== undefined) {
+      return total + (position.currentPrice * position.quantity)
+    }
+    return total
+  }, 0)
+})
+
+// 计算总资产（可用资金 + 总市值）
+const totalAssets = computed(() => {
+  if (!moneyData.value) return 0
+  return moneyData.value.money + totalMarketValue.value
+})
+
 
 // 获取 money 数据
 const fetchMoney = async () => {
@@ -109,8 +129,17 @@ const confirmEdit = async () => {
   }
 }
 
+// 暴露刷新方法供父组件调用
+const refresh = async () => {
+  await fetchMoney()
+}
+
 onMounted(() => {
   fetchMoney()
+})
+
+defineExpose({
+  refresh
 })
 </script>
 
@@ -118,14 +147,6 @@ onMounted(() => {
   <div class="money-section">
     <div class="section-header">
       <h3>资金信息</h3>
-      <van-button 
-        v-if="moneyData" 
-        type="primary" 
-        size="small"
-        @click="openEditDialog"
-      >
-        修正
-      </van-button>
     </div>
     
     <div v-if="loading" class="loading">
@@ -139,9 +160,30 @@ onMounted(() => {
     </div>
     
     <div v-else-if="moneyData" class="money-info">
-      <div class="money-item">
-        <span class="label">金额：</span>
-        <span class="value">{{ moneyData.money }}</span>
+      <!-- 总资产 -->
+      <div class="total-assets">
+        {{ totalAssets.toFixed(2) }}
+      </div>
+      
+      <!-- 可用资金和总市值 -->
+      <div class="money-row">
+        <div class="money-item">
+          <span class="label">可用资金</span>
+          <div class="value-with-button">
+            <span class="value">{{ moneyData.money.toFixed(2) }}</span>
+            <van-button 
+              type="primary" 
+              size="mini"
+              @click="openEditDialog"
+            >
+              修正
+            </van-button>
+          </div>
+        </div>
+        <div class="money-item">
+          <span class="label">总市值</span>
+          <span class="value">{{ Math.round(totalMarketValue) }}</span>
+        </div>
       </div>
     </div>
     
@@ -229,21 +271,42 @@ h3 {
   gap: 12px;
 }
 
-.money-item {
+.total-assets {
+  text-align: center;
+  font-size: 32px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.money-row {
   display: flex;
-  justify-content: space-between;
+  gap: 12px;
+}
+
+.money-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   padding: 12px;
   background-color: #ffffff;
   border-radius: 6px;
 }
 
 .money-item .label {
-  font-size: 14px;
+  font-size: 12px;
   color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.value-with-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .money-item .value {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   color: #111827;
 }
