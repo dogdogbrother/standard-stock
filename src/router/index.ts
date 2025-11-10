@@ -9,7 +9,7 @@ const Login = () => import('../views/Login.vue')
 const AppLayout = () => import('../views/AppLayout.vue')
 const Watchlist = () => import('../views/Watchlist.vue')
 const Buddy = () => import('../views/Buddy.vue')
-const Profile = () => import('../views/Profile.vue')
+const Profile = () => import('../views/profile/index.vue')
 const Search = () => import('../views/Search.vue')
 const StockDetail = () => import('../views/StockDetail.vue')
 
