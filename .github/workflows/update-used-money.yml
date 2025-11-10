@@ -26,11 +26,21 @@ jobs:
           SUPABASE_URL="https://qixncbgvrkfjxopqqpiz.supabase.co"
           
           echo "🔍 调试信息："
-          echo "测试 URL: ${SUPABASE_URL}/functions/v1/update-used-money"
+          echo "测试 URL: ${SUPABASE_URL}/functions/v1/smart-responder"
           echo ""
           
+          # 使用 -v 查看详细信息
+          echo "详细请求信息："
+          curl -v -X POST \
+            "${SUPABASE_URL}/functions/v1/smart-responder" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Content-Type: application/json"
+          
+          echo ""
+          echo "---"
+          
           response=$(curl -s -w "\n%{http_code}" -X POST \
-            "${SUPABASE_URL}/functions/v1/update-used-money" \
+            "${SUPABASE_URL}/functions/v1/smart-responder" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
             -H "Content-Type: application/json")
           
