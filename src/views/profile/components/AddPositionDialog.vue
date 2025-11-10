@@ -19,6 +19,7 @@ const searchLoading = ref(false)
 const searchResults = ref<any[]>([])
 const showSearchDropdown = ref(false)
 const selectedStockName = ref('')
+const selectedStockMarket = ref('')
 
 // 待确认的重复股票信息
 let pendingDuplicateInfo: any = null
@@ -33,6 +34,7 @@ const resetForm = () => {
   searchResults.value = []
   showSearchDropdown.value = false
   selectedStockName.value = ''
+  selectedStockMarket.value = ''
 }
 
 // 搜索股票
@@ -78,20 +80,24 @@ const searchStock = async (keyword: string) => {
       )
       if (exactMatch) {
         selectedStockName.value = exactMatch.name
+        selectedStockMarket.value = exactMatch.market
         showSearchDropdown.value = false
       } else {
         selectedStockName.value = ''
+        selectedStockMarket.value = ''
       }
     } else {
       searchResults.value = []
       showSearchDropdown.value = false
       selectedStockName.value = ''
+      selectedStockMarket.value = ''
     }
   } catch (err) {
     console.error('搜索股票失败:', err)
     searchResults.value = []
     showSearchDropdown.value = false
     selectedStockName.value = ''
+    selectedStockMarket.value = ''
   } finally {
     searchLoading.value = false
   }
@@ -101,6 +107,7 @@ const searchStock = async (keyword: string) => {
 const selectStock = (stock: any) => {
   positionForm.value.stock = stock.code
   selectedStockName.value = stock.name
+  selectedStockMarket.value = stock.market
   searchResults.value = []
   showSearchDropdown.value = false
 }
@@ -163,10 +170,89 @@ const beforeCloseDialog = async (action: string) => {
       return true
     }
     
+    // 如果没有选中股票（没有 market 信息），则从搜索结果中获取
+    if (!selectedStockMarket.value) {
+      await searchStock(stock.trim())
+      const matchedStock = searchResults.value.find(s => s.code === stock.trim())
+      if (matchedStock) {
+        selectedStockMarket.value = matchedStock.market
+      }
+    }
+    
     const success = await addPosition()
     return success
   }
   return true
+}
+
+// 更新资金信息
+const updateMoneyInfo = async (totalAmount: number) => {
+  try {
+    // 获取今天的开始和结束时间
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const todayISO = today.toISOString()
+    
+    const tomorrow = new Date(today)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    const tomorrowISO = tomorrow.toISOString()
+    
+    // 查找今天是否已有记录
+    const { data: todayMoney, error: todayError } = await supabase
+      .from('money')
+      .select('*')
+      .gte('created_at', todayISO)
+      .lt('created_at', tomorrowISO)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    
+    if (todayError) throw todayError
+    
+    // 计算新的资金数据（金额单位：分）
+    const totalAmountInCents = Math.round(totalAmount * 100)
+    
+    if (todayMoney) {
+      // 今天已有记录，更新它
+      const newMoney = todayMoney.money - totalAmountInCents
+      const newUsedMoney = (todayMoney.usedMoney || 0) + totalAmountInCents
+      
+      const { error: updateError } = await supabase
+        .from('money')
+        .update({
+          money: newMoney,
+          usedMoney: newUsedMoney
+        })
+        .eq('id', todayMoney.id)
+      
+      if (updateError) throw updateError
+    } else {
+      // 今天没有记录，获取最新记录并插入新记录
+      const { data: latestMoney, error: fetchError } = await supabase
+        .from('money')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+      
+      if (fetchError) throw fetchError
+      
+      const newMoney = latestMoney.money - totalAmountInCents
+      const newUsedMoney = (latestMoney.usedMoney || 0) + totalAmountInCents
+      
+      const { error: insertError } = await supabase
+        .from('money')
+        .insert({
+          money: newMoney,
+          usedMoney: newUsedMoney
+        })
+      
+      if (insertError) throw insertError
+    }
+  } catch (err) {
+    console.error('更新资金信息失败:', err)
+    throw err
+  }
 }
 
 // 录入持股（仅用于新增股票）
@@ -175,6 +261,8 @@ const addPosition = async () => {
   
   try {
     const costInCents = Math.round(parseFloat(cost) * 100)
+    const costValue = parseFloat(cost)
+    const quantityValue = parseFloat(quantity)
     
     const { error: insertError } = await supabase
       .from('position')
@@ -182,12 +270,16 @@ const addPosition = async () => {
         stock: stock.trim(),
         name: selectedStockName.value || '',
         cost: costInCents,
-        quantity: parseFloat(quantity)
+        quantity: quantityValue
       }])
     
     if (insertError) throw insertError
     
-    await addToWatchlistIfNotExists(stock.trim(), selectedStockName.value)
+    // 更新资金信息
+    const totalAmount = costValue * quantityValue
+    await updateMoneyInfo(totalAmount)
+    
+    await addToWatchlistIfNotExists(stock.trim(), selectedStockMarket.value)
     
     showToast('录入成功')
     emit('success')
@@ -200,7 +292,7 @@ const addPosition = async () => {
 }
 
 // 检查股票是否在 watchlist 中，如果不存在则添加
-const addToWatchlistIfNotExists = async (stockCode: string, stockName: string) => {
+const addToWatchlistIfNotExists = async (stockCode: string, stockMarket: string) => {
   try {
     const { data: existingWatch } = await supabase
       .from('watchlist')
@@ -213,7 +305,7 @@ const addToWatchlistIfNotExists = async (stockCode: string, stockName: string) =
         .from('watchlist')
         .insert([{
           stock: stockCode,
-          name: stockName || ''
+          invt: stockMarket || 'sh'
         }])
       
       if (insertError) {
@@ -268,6 +360,10 @@ watch(visible, async (newVal, oldVal) => {
         .eq('id', existing.id)
       
       if (updateError) throw updateError
+      
+      // 更新资金信息（只需要计算新增的金额）
+      const newAddAmount = newCost * newQuantity
+      await updateMoneyInfo(newAddAmount)
       
       showToast('更新成功')
       emit('success')

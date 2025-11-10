@@ -84,7 +84,11 @@
   | money   | 资产 | int4 |
   | avatar  | 头像的url地址 | text |
 
-- money 资产表,表里只有一个数据,代表我们账户的资产的剩余金额.
+- money 资产表
+  | 字段    | 含义 | 类型 |
+  | :---:   | :---: | 
+  | money   | 资产 | int4 |
+  | usedMoney  | 使用中的资金,也就是持仓金额 | int4 |
 
 - position 持仓表
   | 字段    | 含义 | 类型 |
@@ -93,3 +97,4 @@
   | name    | 股票名称 | text |
   | cost   | 成本 | int4 |
   | quantity  | 持股数量 | text |
+  

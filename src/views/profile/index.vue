@@ -22,6 +22,11 @@ const onRefresh = async () => {
     refreshing.value = false
   }
 }
+
+// 持股变化后刷新资金信息
+const handlePositionChanged = () => {
+  moneyRef.value?.refresh()
+}
 </script>
 
 <template>
@@ -29,7 +34,10 @@ const onRefresh = async () => {
     <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
       <MoneySection ref="moneyRef" />
       
-      <PositionSection ref="positionRef" />
+      <PositionSection 
+        ref="positionRef" 
+        @position-changed="handlePositionChanged"
+      />
     </van-pull-refresh>
   </div>
 </template>

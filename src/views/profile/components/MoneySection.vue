@@ -44,7 +44,8 @@ const fetchMoney = async () => {
     const { data, error: fetchError } = await supabase
       .from('money')
       .select('*')
-      .eq('id', 1) // 查询 id = 1 的记录
+      .order('created_at', { ascending: false })
+      .limit(1)
       .single() // 返回单条记录
     
     if (fetchError) {
@@ -104,11 +105,17 @@ const confirmEdit = async () => {
     // 将元转换为分存储到数据库
     const amountInCents = Math.round(amountInYuan * 100)
     
-    // 更新数据库
+    // 获取最新的 money 记录的 id
+    if (!moneyData.value || !moneyData.value.id) {
+      showToast('获取数据失败')
+      return
+    }
+    
+    // 更新最新的记录
     const { error: updateError } = await supabase
       .from('money')
       .update({ money: amountInCents })
-      .eq('id', 1)
+      .eq('id', moneyData.value.id)
     
     if (updateError) {
       showToast('更新失败')
@@ -234,6 +241,7 @@ defineExpose({
   padding: 16px;
   background-color: #f9fafb;
   border-radius: 8px;
+  min-height: 200px;
 }
 
 .section-header {

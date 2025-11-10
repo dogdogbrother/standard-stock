@@ -5,6 +5,10 @@ import { usePositionStore } from '@/stores/position'
 import PositionList from '@/components/PositionList.vue'
 import AddPositionDialog from './AddPositionDialog.vue'
 
+const emit = defineEmits<{
+  'position-changed': []
+}>()
+
 const positionStore = usePositionStore()
 const positionList = computed(() => positionStore.positionList)
 const positionLoading = computed(() => positionStore.loading)
@@ -27,11 +31,13 @@ const openAddDialog = () => {
 // 添加成功后刷新列表
 const handleAddSuccess = () => {
   fetchPositions()
+  emit('position-changed')
 }
 
 // 减仓成功后刷新列表
 const handleReduceSuccess = () => {
   fetchPositions()
+  emit('position-changed')
 }
 
 // 暴露刷新方法供父组件调用
@@ -91,7 +97,7 @@ defineExpose({
   padding: 16px;
   background-color: #f9fafb;
   border-radius: 8px;
-  min-height: 300px;
+  min-height: 224px;
 }
 
 .section-header {
