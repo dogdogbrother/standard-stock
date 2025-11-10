@@ -94,6 +94,7 @@
   | 字段    | 含义 | 类型 |
   | :---:   | :---: | 
   | stock    | 股票code | text |
+  | invt    | 市场类型 | market_type sz或sh |
   | name    | 股票名称 | text |
   | cost   | 成本 | int4 |
   | quantity  | 持股数量 | text |

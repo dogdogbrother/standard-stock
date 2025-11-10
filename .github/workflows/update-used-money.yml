@@ -1,0 +1,49 @@
+name: Update Used Money
+
+on:
+  # 定时执行：工作日每天下午 3:01（中国时间 = UTC+8）
+  # 15:01 CST = 07:01 UTC
+  schedule:
+    - cron: '1 7 * * 1-5'  # 周一到周五，UTC 07:01
+  
+  # 也支持手动触发（用于测试）
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Get current time
+        id: time
+        run: |
+          echo "time=$(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_OUTPUT
+          echo "当前时间: $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S')"
+      
+      - name: Call Supabase Edge Function
+        run: |
+          response=$(curl -s -w "\n%{http_code}" -X POST \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/update-used-money" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Content-Type: application/json")
+          
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | head -n-1)
+          
+          echo "HTTP Status: $http_code"
+          echo "Response Body: $body"
+          
+          if [ "$http_code" -ne 200 ]; then
+            echo "❌ 请求失败"
+            exit 1
+          fi
+          
+          echo "✅ usedMoney 更新成功"
+          echo "$body" | jq .
+      
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ 定时任务执行失败"
+          echo "时间: ${{ steps.time.outputs.time }}"
+

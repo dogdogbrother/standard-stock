@@ -268,6 +268,7 @@ const addPosition = async () => {
       .from('position')
       .insert([{
         stock: stock.trim(),
+        invt: selectedStockMarket.value || 'sh',
         name: selectedStockName.value || '',
         cost: costInCents,
         quantity: quantityValue
