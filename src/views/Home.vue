@@ -131,8 +131,8 @@ onMounted(() => {
       </div>
     </div>
     
-    <!-- 持仓列表 -->
-    <div class="position-section">
+    <!-- 持仓列表 (暂时隐藏) -->
+    <div v-if="false" class="position-section">
       <div class="section-header">
         <h3 class="section-title" @click="toggleSort">
           持仓
