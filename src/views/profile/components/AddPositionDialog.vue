@@ -276,8 +276,20 @@ const addPosition = async () => {
     
     if (insertError) throw insertError
     
-    // 更新资金信息
     const totalAmount = costValue * quantityValue
+    
+    // 先插入 track 记录（加仓）
+    await insertTrackRecord({
+      stock: stock.trim(),
+      invt: selectedStockMarket.value || 'sh',
+      name: selectedStockName.value || '',
+      money: Math.round(totalAmount * 100), // 单位：分
+      price: Math.round(costValue * 100), // 单位：分
+      num: Math.round(quantityValue), // 确保是整数
+      track_type: 'increase'
+    })
+    
+    // 再更新资金信息
     await updateMoneyInfo(totalAmount)
     
     await addToWatchlistIfNotExists(stock.trim(), selectedStockMarket.value)
@@ -289,6 +301,31 @@ const addPosition = async () => {
     console.error('录入失败:', err)
     showToast('录入失败')
     return false
+  }
+}
+
+// 插入 track 记录
+const insertTrackRecord = async (trackData: {
+  stock: string
+  invt: string
+  name: string
+  money: number // 单位：分（整数）
+  price: number // 单位：分（整数）
+  num: number // 股票数量（整数）
+  track_type: 'increase' | 'reduce'
+}) => {
+  try {
+    const { error: trackError } = await supabase
+      .from('track')
+      .insert([trackData])
+    
+    if (trackError) {
+      console.error('插入 track 记录失败:', trackError)
+      throw trackError
+    }
+  } catch (err) {
+    console.error('记录操作失败:', err)
+    throw err
   }
 }
 
@@ -362,8 +399,20 @@ watch(visible, async (newVal, oldVal) => {
       
       if (updateError) throw updateError
       
-      // 更新资金信息（只需要计算新增的金额）
       const newAddAmount = newCost * newQuantity
+      
+      // 先插入 track 记录（加仓）
+      await insertTrackRecord({
+        stock: form.stock.trim(),
+        invt: selectedStockMarket.value || 'sh',
+        name: stockName || existing.name,
+        money: Math.round(newAddAmount * 100), // 单位：分
+        price: Math.round(newCost * 100), // 单位：分
+        num: Math.round(newQuantity), // 确保是整数
+        track_type: 'increase'
+      })
+      
+      // 再更新资金信息（只需要计算新增的金额）
       await updateMoneyInfo(newAddAmount)
       
       showToast('更新成功')

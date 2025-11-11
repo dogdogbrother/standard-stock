@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 export interface Position {
   id: number
   stock: string
+  invt: string
   name: string
   cost: number
   quantity: number
@@ -90,7 +91,7 @@ export const usePositionStore = defineStore('position', () => {
     try {
       const { data, error: fetchError } = await supabase
         .from('position')
-        .select('id, stock, name, cost, quantity, created_at')
+        .select('id, stock, invt, name, cost, quantity, created_at')
         .order('created_at', { ascending: false })
       
       if (fetchError) throw fetchError
@@ -99,6 +100,7 @@ export const usePositionStore = defineStore('position', () => {
       const positions = (data || []).map((pos: any) => ({
         id: pos.id,
         stock: pos.stock,
+        invt: pos.invt,
         name: pos.name,
         cost: pos.cost / 100,
         quantity: pos.quantity,

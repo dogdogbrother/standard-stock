@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { showToast } from 'vant'
 import { usePositionStore, type Position } from '@/stores/position'
+import { supabase } from '@/lib/supabase'
 
 interface Props {
   positionList: Position[]
@@ -19,6 +20,8 @@ const positionStore = usePositionStore()
 const showReduceDialog = ref(false)
 const reduceForm = ref({
   positionId: 0,
+  stock: '',
+  invt: '',
   stockName: '',
   currentQuantity: 0,
   currentCost: 0,
@@ -49,6 +52,8 @@ const getMarketValue = (position: Position): number => {
 const openReduceDialog = (position: Position) => {
   reduceForm.value = {
     positionId: position.id,
+    stock: position.stock,
+    invt: position.invt,
     stockName: position.name,
     currentQuantity: position.quantity,
     currentCost: position.cost,
@@ -57,6 +62,31 @@ const openReduceDialog = (position: Position) => {
     newCost: position.cost
   }
   showReduceDialog.value = true
+}
+
+// 插入 track 记录
+const insertTrackRecord = async (trackData: {
+  stock: string
+  invt: string
+  name: string
+  money: number // 单位：分（整数）
+  price: number // 单位：分（整数）
+  num: number // 股票数量（整数）
+  track_type: 'increase' | 'reduce'
+}) => {
+  try {
+    const { error: trackError } = await supabase
+      .from('track')
+      .insert([trackData])
+    
+    if (trackError) {
+      console.error('插入 track 记录失败:', trackError)
+      throw trackError
+    }
+  } catch (err) {
+    console.error('记录操作失败:', err)
+    throw err
+  }
 }
 
 // 计算减仓后的新成本价
@@ -94,7 +124,7 @@ const calculateNewCost = () => {
 
 // 确认减仓
 const confirmReduce = async () => {
-  const { positionId, currentQuantity, sellPrice, reduceQuantity } = reduceForm.value
+  const { positionId, stock, invt, stockName, currentQuantity, sellPrice, reduceQuantity } = reduceForm.value
   
   if (!sellPrice) {
     showToast('请输入卖出价格')
@@ -133,6 +163,18 @@ const confirmReduce = async () => {
   try {
     const newQuantity = currentQuantity - reduceNum
     
+    // 先插入 track 记录（减仓）
+    await insertTrackRecord({
+      stock: stock,
+      invt: invt,
+      name: stockName,
+      money: Math.round(sellPriceNum * reduceNum * 100), // 单位：分
+      price: Math.round(sellPriceNum * 100), // 单位：分
+      num: Math.round(reduceNum), // 确保是整数
+      track_type: 'reduce'
+    })
+    
+    // 再更新或删除持仓
     if (newQuantity === 0) {
       // 完全清仓，删除记录
       await positionStore.deletePosition(positionId)
