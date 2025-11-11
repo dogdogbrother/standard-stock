@@ -211,7 +211,7 @@ const confirmReduce = async () => {
             v-if="position.currentPrice !== undefined" 
             class="current-price"
           >
-            {{ position.currentPrice.toFixed(2) }}
+            {{ position.currentPrice.toFixed(3) }}
           </span>
           <span v-else class="current-price loading-text">--</span>
           
@@ -234,7 +234,7 @@ const confirmReduce = async () => {
         </span>
         <span class="detail-item">
           <span class="label">成本：</span>
-          <span class="value">{{ position.cost.toFixed(2) }}</span>
+          <span class="value">{{ position.cost.toFixed(3) }}</span>
         </span>
         <span class="detail-item">
           <span class="label">持股：</span>
@@ -308,7 +308,7 @@ const confirmReduce = async () => {
         <div v-if="reduceForm.reduceQuantity && parseFloat(reduceForm.reduceQuantity) > 0 && parseFloat(reduceForm.reduceQuantity) < reduceForm.currentQuantity" class="new-cost-info">
           <div class="cost-row">
             <span class="label">原成本价：</span>
-            <span class="value">{{ reduceForm.currentCost.toFixed(2) }} 元</span>
+            <span class="value">{{ reduceForm.currentCost.toFixed(3) }} 元</span>
           </div>
           <div class="cost-row">
             <span class="label">新成本价：</span>
@@ -319,7 +319,7 @@ const confirmReduce = async () => {
                 'cost-up': reduceForm.newCost > reduceForm.currentCost
               }"
             >
-              {{ reduceForm.newCost.toFixed(2) }} 元
+              {{ reduceForm.newCost.toFixed(3) }} 元
             </span>
           </div>
         </div>

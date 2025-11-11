@@ -91,7 +91,7 @@ const fetchWatchlist = async (isRefresh = false) => {
       const transformed = result.data.diff.map((item: any) => ({
         code: item.f12,
         name: item.f14,
-        price: item.f2 ? (item.f2 / 100).toFixed(2) : '--',
+        price: item.f2 ? (item.f2 / 100).toFixed(3) : '--',
         change: item.f4 ? item.f4 / 100 : 0,
         changePercent: item.f3 ? item.f3 / 100 : 0,
         invt: item.f13 === 0 ? 'sz' : 'sh'

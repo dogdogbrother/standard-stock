@@ -96,8 +96,8 @@
   | stock    | 股票code | text |
   | invt    | 市场类型 | market_type sz或sh |
   | name    | 股票名称 | text |
-  | cost   | 成本 | int4 |
-  | quantity  | 持股数量 | text |
+  | cost   | 成本 | float4 |
+  | quantity  | 持股数量 | int4 |
 
 - track 持仓操作表
   每次加仓或减仓都会生成一条数据.
@@ -107,7 +107,7 @@
   | invt    | 市场类型 | market_type sz或sh |
   | name    | 股票名称 | text |
   | money   | 操作金额(单位:分) | int4 |
-  | price  | 股票价格(单位:分) | int4 |
+  | price  | 股票价格(单位:分) | float4 |
   | num  | 股票数量 | int4 |
   | track_type  | 操作类型 | track_type increase加仓或reduce减仓 |
   

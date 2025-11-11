@@ -382,7 +382,7 @@ watch(visible, async (newVal, oldVal) => {
     try {
       await showConfirmDialog({
         title: '股票已存在',
-        message: `成本价格已变动 (${avgCost.toFixed(2)}元)`,
+        message: `成本价格已变动 (${avgCost.toFixed(3)}元)`,
         confirmButtonText: '确认',
         cancelButtonText: '取消'
       })
