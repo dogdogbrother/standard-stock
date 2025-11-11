@@ -58,9 +58,9 @@ const fetchStocks = async (query: string) => {
       return
     }
 
-    // 只保留 GP-A 类型的股票
+    // 只保留 GP-A 开头类型的股票
     const stocks = data.data.stock
-      .filter(item => item[4] === 'GP-A')
+      .filter(item => item[4]?.startsWith('GP-A'))
       .map(item => ({
         exchange: item[0].toUpperCase(),
         code: item[1],

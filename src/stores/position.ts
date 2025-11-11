@@ -119,7 +119,8 @@ export const usePositionStore = defineStore('position', () => {
 
   // 更新持股（减仓时）
   const updatePosition = async (positionId: number, quantity: number, cost: number) => {
-    const costInCents = Math.round(cost * 100)
+    // cost 保留3位小数(元)，转为1位小数(分): 11.678元 → 1167.8分
+    const costInCents = Math.round(cost * 1000) / 10
     
     const { error: updateError } = await supabase
       .from('position')

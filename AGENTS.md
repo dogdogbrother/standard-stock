@@ -40,7 +40,7 @@
       }
     }
   ```
-  - GP-A是股票的意思,我们只看GP-A的数据.
+  - GP-A是股票的意思,我们只看GP-A开头的数据.
     
 * 获取股票详情
   - 东方财富接口https://push2delay.eastmoney.com/api/qt/ulist.np/get

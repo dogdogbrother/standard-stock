@@ -49,6 +49,8 @@ const onStockInput = () => {
   if (!keyword) {
     searchResults.value = []
     showSearchDropdown.value = false
+    selectedStockName.value = ''
+    selectedStockMarket.value = ''
     return
   }
   
@@ -67,7 +69,7 @@ const searchStock = async (keyword: string) => {
     
     if (data.code === 0 && data.data?.stock) {
       searchResults.value = data.data.stock
-        .filter((item: any[]) => item[4] === 'GP-A')
+        .filter((item: any[]) => item[4]?.startsWith('GP-A'))
         .map((item: any[]) => ({
           market: item[0],
           code: item[1],
@@ -170,12 +172,13 @@ const beforeCloseDialog = async (action: string) => {
       return true
     }
     
-    // 如果没有选中股票（没有 market 信息），则从搜索结果中获取
-    if (!selectedStockMarket.value) {
+    // 如果没有选中股票（没有 market 或 name 信息），则从搜索结果中获取
+    if (!selectedStockMarket.value || !selectedStockName.value) {
       await searchStock(stock.trim())
       const matchedStock = searchResults.value.find(s => s.code === stock.trim())
       if (matchedStock) {
         selectedStockMarket.value = matchedStock.market
+        selectedStockName.value = matchedStock.name
       }
     }
     
@@ -213,15 +216,13 @@ const updateMoneyInfo = async (totalAmount: number) => {
     const totalAmountInCents = Math.round(totalAmount * 100)
     
     if (todayMoney) {
-      // 今天已有记录，更新它
+      // 今天已有记录，更新它（只更新money，usedMoney由定时任务更新）
       const newMoney = todayMoney.money - totalAmountInCents
-      const newUsedMoney = (todayMoney.usedMoney || 0) + totalAmountInCents
       
       const { error: updateError } = await supabase
         .from('money')
         .update({
-          money: newMoney,
-          usedMoney: newUsedMoney
+          money: newMoney
         })
         .eq('id', todayMoney.id)
       
@@ -238,13 +239,11 @@ const updateMoneyInfo = async (totalAmount: number) => {
       if (fetchError) throw fetchError
       
       const newMoney = latestMoney.money - totalAmountInCents
-      const newUsedMoney = (latestMoney.usedMoney || 0) + totalAmountInCents
       
       const { error: insertError } = await supabase
         .from('money')
         .insert({
-          money: newMoney,
-          usedMoney: newUsedMoney
+          money: newMoney
         })
       
       if (insertError) throw insertError
@@ -260,7 +259,8 @@ const addPosition = async () => {
   const { stock, cost, quantity } = positionForm.value
   
   try {
-    const costInCents = Math.round(parseFloat(cost) * 100)
+    // cost 保留3位小数(元)，转为1位小数(分): 11.678元 → 1167.8分
+    const costInCents = Math.round(parseFloat(cost) * 1000) / 10
     const costValue = parseFloat(cost)
     const quantityValue = parseFloat(quantity)
     
@@ -283,8 +283,8 @@ const addPosition = async () => {
       stock: stock.trim(),
       invt: selectedStockMarket.value || 'sh',
       name: selectedStockName.value || '',
-      money: Math.round(totalAmount * 100), // 单位：分
-      price: Math.round(costValue * 100), // 单位：分
+      money: Math.round(totalAmount * 100), // 单位：分（整数）
+      price: Math.round(costValue * 1000) / 10, // 单位：分（1位小数）
       num: Math.round(quantityValue), // 确保是整数
       track_type: 'increase'
     })
@@ -387,7 +387,8 @@ watch(visible, async (newVal, oldVal) => {
         cancelButtonText: '取消'
       })
       
-      const avgCostInCents = Math.round(avgCost * 100)
+      // avgCost 保留3位小数(元)，转为1位小数(分): 11.678元 → 1167.8分
+      const avgCostInCents = Math.round(avgCost * 1000) / 10
       const { error: updateError } = await supabase
         .from('position')
         .update({
@@ -406,8 +407,8 @@ watch(visible, async (newVal, oldVal) => {
         stock: form.stock.trim(),
         invt: selectedStockMarket.value || 'sh',
         name: stockName || existing.name,
-        money: Math.round(newAddAmount * 100), // 单位：分
-        price: Math.round(newCost * 100), // 单位：分
+        money: Math.round(newAddAmount * 100), // 单位：分（整数）
+        price: Math.round(newCost * 1000) / 10, // 单位：分（1位小数）
         num: Math.round(newQuantity), // 确保是整数
         track_type: 'increase'
       })

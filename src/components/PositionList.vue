@@ -6,9 +6,12 @@ import { supabase } from '@/lib/supabase'
 
 interface Props {
   positionList: Position[]
+  showReduceButton?: boolean // 是否显示减仓按钮，默认为 true
 }
 
-defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  showReduceButton: true
+})
 
 const emit = defineEmits<{
   (e: 'reduce-success'): void
@@ -70,7 +73,7 @@ const insertTrackRecord = async (trackData: {
   invt: string
   name: string
   money: number // 单位：分（整数）
-  price: number // 单位：分（整数）
+  price: number // 单位：分（1位小数）
   num: number // 股票数量（整数）
   track_type: 'increase' | 'reduce'
 }) => {
@@ -85,6 +88,72 @@ const insertTrackRecord = async (trackData: {
     }
   } catch (err) {
     console.error('记录操作失败:', err)
+    throw err
+  }
+}
+
+// 更新资金信息（减仓时增加可用资金）
+const updateMoneyInfo = async (totalAmount: number) => {
+  try {
+    // 获取今天的开始和结束时间
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const todayISO = today.toISOString()
+    
+    const tomorrow = new Date(today)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    const tomorrowISO = tomorrow.toISOString()
+    
+    // 查找今天是否已有记录
+    const { data: todayMoney, error: todayError } = await supabase
+      .from('money')
+      .select('*')
+      .gte('created_at', todayISO)
+      .lt('created_at', tomorrowISO)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    
+    if (todayError) throw todayError
+    
+    // 计算新的资金数据（金额单位：分）
+    const totalAmountInCents = Math.round(totalAmount * 100)
+    
+    if (todayMoney) {
+      // 今天已有记录，更新它（减仓增加可用资金，只更新money，usedMoney由定时任务更新）
+      const newMoney = todayMoney.money + totalAmountInCents
+      
+      const { error: updateError } = await supabase
+        .from('money')
+        .update({
+          money: newMoney
+        })
+        .eq('id', todayMoney.id)
+      
+      if (updateError) throw updateError
+    } else {
+      // 今天没有记录，获取最新记录并插入新记录
+      const { data: latestMoney, error: fetchError } = await supabase
+        .from('money')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+      
+      if (fetchError) throw fetchError
+      
+      const newMoney = latestMoney.money + totalAmountInCents
+      
+      const { error: insertError } = await supabase
+        .from('money')
+        .insert({
+          money: newMoney
+        })
+      
+      if (insertError) throw insertError
+    }
+  } catch (err) {
+    console.error('更新资金信息失败:', err)
     throw err
   }
 }
@@ -168,11 +237,14 @@ const confirmReduce = async () => {
       stock: stock,
       invt: invt,
       name: stockName,
-      money: Math.round(sellPriceNum * reduceNum * 100), // 单位：分
-      price: Math.round(sellPriceNum * 100), // 单位：分
+      money: Math.round(sellPriceNum * reduceNum * 100), // 单位：分（整数）
+      price: Math.round(sellPriceNum * 1000) / 10, // 单位：分（1位小数）
       num: Math.round(reduceNum), // 确保是整数
       track_type: 'reduce'
     })
+    
+    // 更新资金信息（减仓释放资金）
+    await updateMoneyInfo(sellPriceNum * reduceNum)
     
     // 再更新或删除持仓
     if (newQuantity === 0) {
@@ -258,6 +330,7 @@ const confirmReduce = async () => {
           </span>
         </div>
         <van-button 
+          v-if="props.showReduceButton"
           type="warning" 
           size="mini"
           @click="openReduceDialog(position)"
@@ -269,6 +342,7 @@ const confirmReduce = async () => {
     
     <!-- 减仓对话框 -->
     <van-dialog
+      v-if="props.showReduceButton"
       v-model:show="showReduceDialog"
       title="减仓"
       show-cancel-button
