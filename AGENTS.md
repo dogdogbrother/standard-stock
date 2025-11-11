@@ -81,14 +81,15 @@
   | 字段    | 含义 | 类型 |
   | :---:   | :---: | 
   | name    | 名称 | text |
-  | money   | 资产 | int4 |
   | avatar  | 头像的url地址 | text |
+  | heldUnit | 持有的股票份额(保留小数点4位) | float4 |
+  | heldUnitStatus | 持有份额状态(0=待确认,1=已确认) | int2 |
 
 - money 资产表
   | 字段    | 含义 | 类型 |
   | :---:   | :---: | 
-  | money   | 资产 | int4 |
-  | usedMoney  | 使用中的资金,也就是持仓金额 | int4 |
+  | money   | 资产(单位分) | int4 |
+  | usedMoney  | 使用中的资金,也就是持仓金额(单位分) | int4 |
 
 - position 持仓表
   | 字段    | 含义 | 类型 |
@@ -110,4 +111,19 @@
   | price  | 股票价格(单位:分) | float4 |
   | num  | 股票数量 | int4 |
   | track_type  | 操作类型 | track_type increase加仓或reduce减仓 |
+
+- unit 份额表 这表只有一条数据,total是固定值100000(这个不会被更改),buddy伙伴可以购买份额,held就是被购买走了的份额.
+
+## 伙伴份额分配逻辑
+
+当拉入伙伴时，根据以下逻辑计算和分配份额：
+
+1. **份额价格计算**：份额价格 = (money表的money + usedMoney) / 100000
+2. **应有份额计算**：应有份额 = 伙伴资产 / 份额价格（保留4位小数）
+3. **交易时间判断**：
+   - 工作日 9:30-15:01 为交易时间
+   - 交易时间内拉入伙伴：heldUnitStatus = 0（待确认），heldUnit = 0
+   - 非交易时间拉入伙伴：heldUnitStatus = 1（已确认），计算并设置 heldUnit
+4. **同步更新**：当 heldUnitStatus = 1 时，同步更新 unit 表的 held 值
+5. **定时任务**：usedMoney 在工作日下午 3:01 由定时任务更新
   

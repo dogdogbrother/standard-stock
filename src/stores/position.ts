@@ -12,6 +12,7 @@ export interface Position {
   created_at: string
   currentPrice?: number
   changePercent?: number
+  yesterdayPrice?: number // 昨收价
 }
 
 export const usePositionStore = defineStore('position', () => {
@@ -44,7 +45,7 @@ export const usePositionStore = defineStore('position', () => {
       // 使用 URLSearchParams 正确转义参数
       const params = new URLSearchParams({
         secids: secids,
-        fields: 'f2,f3,f12'
+        fields: 'f2,f3,f12' // f2=最新价, f3=涨跌幅, f12=代码 (通过f2和f3计算昨收价)
       })
       
       const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
@@ -64,15 +65,25 @@ export const usePositionStore = defineStore('position', () => {
       if (result.data?.diff) {
         const stockDataMap = new Map()
         result.data.diff.forEach((item: any) => {
+          const currentPrice = item.f2 / 100 // 最新价除以100
+          const changePercent = item.f3 / 100 // 涨跌幅除以100 (例如: 250 -> 2.5%)
+          // 通过最新价和涨跌幅反推昨收价：昨收价 = 最新价 / (1 + 涨跌幅)
+          // changePercent 已经是百分比数值，直接用
+          const yesterdayPrice = changePercent !== 0 
+            ? currentPrice / (1 + changePercent / 100)
+            : currentPrice
+          
           stockDataMap.set(item.f12, {
-            currentPrice: item.f2 / 100, // 最新价除以100
-            changePercent: item.f3 / 100 // 涨跌幅除以100
+            yesterdayPrice: yesterdayPrice,
+            currentPrice: currentPrice,
+            changePercent: changePercent
           })
         })
         
         // 更新持股列表的实时数据
         return positions.map(pos => ({
           ...pos,
+          yesterdayPrice: stockDataMap.get(pos.stock)?.yesterdayPrice,
           currentPrice: stockDataMap.get(pos.stock)?.currentPrice,
           changePercent: stockDataMap.get(pos.stock)?.changePercent
         }))

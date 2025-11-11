@@ -6,8 +6,9 @@ import { showToast } from 'vant'
 interface Buddy {
   id: number
   name: string
-  money: number
   avatar?: string
+  heldUnit?: number
+  heldUnitStatus?: number
   created_at: string
 }
 
@@ -34,11 +35,7 @@ const fetchBuddies = async () => {
     
     if (error) throw error
     
-    // 将分转换为元显示
-    buddyList.value = (data || []).map(buddy => ({
-      ...buddy,
-      money: buddy.money / 100
-    }))
+    buddyList.value = data || []
   } catch (err) {
     console.error('获取伙伴列表失败:', err)
     showToast('获取伙伴列表失败')
@@ -148,6 +145,35 @@ const beforeCloseDialog = async (action: string) => {
   return true
 }
 
+// 格式化份额显示，去掉尾部的0
+const formatUnit = (unit: number | undefined): string => {
+  if (!unit) return '0'
+  // 保留4位小数后，去掉尾部的0
+  return parseFloat(unit.toFixed(4)).toString()
+}
+
+// 判断是否是工作日交易时间（9:30-15:01）
+const isTradingTime = (): boolean => {
+  const now = new Date()
+  const day = now.getDay() // 0=周日, 1-5=周一至周五, 6=周六
+  
+  // 周末直接返回 false
+  if (day === 0 || day === 6) {
+    return false
+  }
+  
+  // 工作日判断时间
+  const hours = now.getHours()
+  const minutes = now.getMinutes()
+  const currentTime = hours * 60 + minutes
+  
+  // 9:30 = 570分钟, 15:01 = 901分钟
+  const tradingStart = 9 * 60 + 30 // 570
+  const tradingEnd = 15 * 60 + 1 // 901
+  
+  return currentTime >= tradingStart && currentTime <= tradingEnd
+}
+
 // 添加伙伴
 const addBuddy = async () => {
   const { name, money, avatar } = buddyForm.value
@@ -163,18 +189,66 @@ const addBuddy = async () => {
   }
   
   try {
-    // 将元转换为分存储
-    const moneyInCents = Math.round(parseFloat(money) * 100)
+    // money 参数仅用于计算份额
+    const buddyMoneyInYuan = parseFloat(money)
     
-    const { error } = await supabase
+    // 1. 获取 money 表的最新数据
+    const { data: moneyData, error: moneyError } = await supabase
+      .from('money')
+      .select('money, usedMoney')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+    
+    if (moneyError) throw moneyError
+    
+    // 2. 计算份额价格 = (money + usedMoney) / 100000
+    const totalValue = (moneyData.money + (moneyData.usedMoney || 0)) / 100 // 转换为元
+    const unitPrice = totalValue / 100000
+    
+    // 3. 判断交易时间，设置 heldUnitStatus
+    const isTrading = isTradingTime()
+    let heldUnitStatus = 0 // 默认待确认
+    let heldUnit = 0
+    
+    if (!isTrading) {
+      // 非交易时间，状态设为已确认
+      heldUnitStatus = 1
+      // 4. 计算应有份额 = 伙伴资产 / 份额价格（保留4位小数）
+      heldUnit = parseFloat((buddyMoneyInYuan / unitPrice).toFixed(4))
+    }
+    
+    // 5. 插入 buddy 数据（不包含 money 字段）
+    const { error: buddyError } = await supabase
       .from('buddy')
       .insert([{
         name: name.trim(),
-        money: moneyInCents,
-        avatar: avatar.trim() || null
+        avatar: avatar.trim() || null,
+        heldUnit: heldUnit,
+        heldUnitStatus: heldUnitStatus
       }])
     
-    if (error) throw error
+    if (buddyError) throw buddyError
+    
+    // 6. 如果是已确认状态，更新 unit 表的 held 值
+    if (heldUnitStatus === 1 && heldUnit > 0) {
+      // 获取当前 unit 表数据（只有一条记录）
+      const { data: unitData, error: unitFetchError } = await supabase
+        .from('unit')
+        .select('id, held')
+        .single()
+      
+      if (unitFetchError) throw unitFetchError
+      
+      // 更新 held 值
+      const newHeld = parseFloat(((unitData.held || 0) + heldUnit).toFixed(4))
+      const { error: unitUpdateError } = await supabase
+        .from('unit')
+        .update({ held: newHeld })
+        .eq('id', unitData.id)
+      
+      if (unitUpdateError) throw unitUpdateError
+    }
     
     showToast('添加伙伴成功')
     fetchBuddies()
@@ -227,7 +301,15 @@ onMounted(() => {
         </div>
         <div class="buddy-info">
           <div class="buddy-name">{{ buddy.name }}</div>
-          <div class="buddy-money">资产：¥{{ buddy.money.toFixed(2) }}</div>
+          <div class="buddy-unit">
+            持有份额：{{ formatUnit(buddy.heldUnit) }}
+            <span 
+              class="unit-status" 
+              :class="buddy.heldUnitStatus === 1 ? 'confirmed' : 'pending'"
+            >
+              {{ buddy.heldUnitStatus === 1 ? '已确认' : '待确认' }}
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -399,15 +481,36 @@ h2 {
   font-size: 16px;
   font-weight: 600;
   color: #111827;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.buddy-money {
+.buddy-unit {
   font-size: 14px;
   color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.unit-status {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 11px;
+  border-radius: 10px;
+  font-weight: 500;
+  
+  &.confirmed {
+    color: #10b981;
+    background-color: #d1fae5;
+  }
+  
+  &.pending {
+    color: #f59e0b;
+    background-color: #fef3c7;
+  }
 }
 
 .dialog-content {
