@@ -1,30 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { supabase } from '@/lib/supabase'
-
-interface WatchlistItem {
-  id: number
-  invt: 'sh' | 'sz'
-  stock: string
-  created_at: string
-}
-
-interface StockDetail {
-  code: string
-  name: string
-  price: string | number
-  change: number
-  changePercent: number
-  invt: string
-}
+import { useWatchlistStore, type StockDetail } from '@/stores/watchlist'
+import { usePositionStore } from '@/stores/position'
 
 const router = useRouter()
-const loading = ref(false)
+const watchlistStore = useWatchlistStore()
+const positionStore = usePositionStore()
 const refreshing = ref(false) // 下拉刷新状态
-const stockList = ref<StockDetail[]>([])
-const originalStockList = ref<StockDetail[]>([]) // 缓存原始列表数据
-const error = ref('')
 const sortOrder = ref<'default' | 'asc' | 'desc'>('default') // default: 默认, asc: 升序, desc: 降序
 
 // 判断是否是交易时间（工作日 9:30 之后）
@@ -55,94 +38,13 @@ const goToSearch = () => {
   router.push('/search')
 }
 
-// 将 invt 转换为东方财富的市场代码
-const convertInvtToMarket = (invt: string): string => {
-  return invt === 'sz' ? '0' : '1' // sz -> 0, sh -> 1
-}
-
-// 获取自选股票列表
-const fetchWatchlist = async (isRefresh = false) => {
-  if (!isRefresh) {
-    loading.value = true
-    error.value = ''
-    stockList.value = []
-  }
-  
-  try {
-    // 1. 从 watchlist 表获取所有自选股票
-    const { data: watchlistData, error: watchlistError } = await supabase
-      .from('watchlist')
-      .select('*')
-      .order('created_at', { ascending: false })
-    
-    if (watchlistError) {
-      throw watchlistError
-    }
-    
-    if (!watchlistData || watchlistData.length === 0) {
-      return
-    }
-    
-    // 2. 拼接 secids 参数，格式：0.000001,1.600000
-    const secids = watchlistData
-      .map((item: WatchlistItem) => `${convertInvtToMarket(item.invt)}.${item.stock}`)
-      .join(',')
-    
-    console.log('secids:', secids)
-    
-    // 3. 请求东方财富接口获取股票详情
-    const fields = 'f1,f2,f3,f4,f12,f13,f14'
-    const apiUrl = import.meta.env.VITE_STOCK_DETAIL_API || 'https://qixncbgvrkfjxopqqpiz.supabase.co/functions/v1/stock-detail'
-    const url = `${apiUrl}?secids=${encodeURIComponent(secids)}&fields=${encodeURIComponent(fields)}`
-    
-    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
-    const response = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${supabaseAnonKey}`,
-        'Content-Type': 'application/json'
-      }
-    })
-    
-    if (!response.ok) {
-      throw new Error('获取股票详情失败')
-    }
-    
-    const result = await response.json()
-    console.log('东方财富返回:', result)
-    
-    if (result.data && result.data.diff) {
-      // 4. 转换数据格式
-      const transformed = result.data.diff.map((item: any) => ({
-        code: item.f12,
-        name: item.f14,
-        price: item.f2 ? (item.f2 / 100).toFixed(3) : '--',
-        change: item.f4 ? item.f4 / 100 : 0,
-        changePercent: item.f3 ? item.f3 / 100 : 0,
-        invt: item.f13 === 0 ? 'sz' : 'sh'
-      }))
-      
-      // 缓存原始数据
-      originalStockList.value = [...transformed]
-      stockList.value = transformed
-      
-      // 重置排序状态
-      sortOrder.value = 'default'
-    }
-  } catch (err) {
-    console.error('获取自选列表失败:', err)
-    error.value = err instanceof Error ? err.message : '加载失败'
-  } finally {
-    if (!isRefresh) {
-      loading.value = false
-    }
-  }
-}
-
 // 下拉刷新
 const onRefresh = async () => {
   refreshing.value = true
-  await fetchWatchlist(true)
+  await watchlistStore.refreshWatchlist()
   refreshing.value = false
+  // 重置排序状态
+  sortOrder.value = 'default'
 }
 
 const goToStockDetail = (stock: StockDetail) => {
@@ -159,25 +61,17 @@ const toggleSort = () => {
     sortOrder.value = 'default' // 第三次点击：恢复默认
   }
   
-  sortStockList()
+  watchlistStore.sortStockList(sortOrder.value)
 }
 
-// 排序股票列表
-const sortStockList = () => {
-  if (sortOrder.value === 'default') {
-    // 恢复默认顺序（使用缓存的原始数据）
-    stockList.value = [...originalStockList.value]
-  } else if (sortOrder.value === 'desc') {
-    // 降序：涨幅从大到小
-    stockList.value.sort((a, b) => b.changePercent - a.changePercent)
-  } else {
-    // 升序：涨幅从小到大
-    stockList.value.sort((a, b) => a.changePercent - b.changePercent)
+onMounted(async () => {
+  // 如果 position store 没有数据，先加载持仓数据（为判断持仓股提供缓存）
+  if (positionStore.positionList.length === 0) {
+    await positionStore.fetchPositions()
   }
-}
-
-onMounted(() => {
-  fetchWatchlist()
+  
+  // 加载自选列表
+  await watchlistStore.fetchWatchlist()
 })
 </script>
 
@@ -192,17 +86,17 @@ onMounted(() => {
     />
     
     <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
-      <div v-if="loading" class="loading-state">
+      <div v-if="watchlistStore.loading" class="loading-state">
         <van-loading size="24px" />
         <span>加载中...</span>
       </div>
       
-      <div v-else-if="error" class="error-state">
+      <div v-else-if="watchlistStore.error" class="error-state">
         <van-icon name="warning-o" />
-        <p>{{ error }}</p>
+        <p>{{ watchlistStore.error }}</p>
       </div>
       
-      <div v-else-if="stockList.length > 0" class="stock-container">
+      <div v-else-if="watchlistStore.stockList.length > 0" class="stock-container">
       <div class="stock-header">
         <div class="header-name">名称/代码</div>
         <div class="header-price">最新</div>
@@ -218,13 +112,16 @@ onMounted(() => {
       
       <div class="stock-list">
         <div 
-          v-for="stock in stockList" 
+          v-for="stock in watchlistStore.stockList" 
           :key="`${stock.invt}${stock.code}`"
           class="stock-item"
           @click="goToStockDetail(stock)"
         >
           <div class="stock-info">
-            <div class="stock-name">{{ stock.name }}</div>
+            <div class="stock-name">
+              {{ stock.name }}
+              <span v-if="watchlistStore.isInPosition(stock)" class="position-badge">持</span>
+            </div>
             <div class="stock-code">{{ stock.invt.toUpperCase() }}{{ stock.code }}</div>
           </div>
           <div class="stock-price">
@@ -279,6 +176,7 @@ onMounted(() => {
   flex: 1;
   overflow-y: auto;
   padding: 10px;
+  padding-bottom: 20px; // 增加底部间距
 }
 
 .loading-state,
@@ -388,6 +286,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  margin-bottom: 10px; // 列表底部间距
 }
 
 .stock-item {
@@ -415,6 +314,20 @@ onMounted(() => {
   font-weight: 600;
   color: #111827;
   margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.position-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #ffffff;
+  background-color: #3b82f6;
+  border-radius: 4px;
+  line-height: 1;
 }
 
 .stock-code {

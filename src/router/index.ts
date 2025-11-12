@@ -8,7 +8,7 @@ const Home = () => import('../views/Home.vue')
 const Login = () => import('../views/Login.vue')
 const AppLayout = () => import('../views/AppLayout.vue')
 const Watchlist = () => import('../views/Watchlist.vue')
-const Buddy = () => import('../views/Buddy.vue')
+const Buddy = () => import('../views/buddy/index.vue')
 const Profile = () => import('../views/profile/index.vue')
 const Search = () => import('../views/Search.vue')
 const StockDetail = () => import('../views/StockDetail.vue')
@@ -102,7 +102,10 @@ router.beforeEach((to) => {
     return { path: '/app' }
   }
 
-  if (!loggedIn && !WHITE_LIST.includes(to.path)) {
+  // 检查是否在白名单中
+  const isInWhiteList = WHITE_LIST.includes(to.path) || to.path.startsWith('/stock/')
+
+  if (!loggedIn && !isInWhiteList) {
     return { path: '/login' }
   }
 

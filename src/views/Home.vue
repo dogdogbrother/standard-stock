@@ -2,14 +2,8 @@
 import { ref, onMounted, computed } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { usePositionStore } from '@/stores/position'
+import { useMoneyStore } from '@/stores/money'
 import PositionList from '@/components/PositionList.vue'
-
-interface MoneyRecord {
-  id: number
-  money: number
-  usedMoney?: number
-  created_at: string
-}
 
 interface Buddy {
   id: number
@@ -21,11 +15,12 @@ interface Buddy {
 }
 
 const loading = ref(false)
-const moneyData = ref<MoneyRecord | null>(null)
 const positionStore = usePositionStore()
+const moneyStore = useMoneyStore()
 const sortOrder = ref<'default' | 'desc' | 'asc'>('default')
 const buddyList = ref<Buddy[]>([])
 const buddyLoading = ref(false)
+const allDataLoaded = ref(false) // 所有数据加载完成标识
 
 // 判断是否是交易时间（工作日 9:30 之后）
 const isTradingTime = (): boolean => {
@@ -72,14 +67,14 @@ const fetchBuddies = async () => {
 
 // 计算份额价格
 const unitPrice = computed(() => {
-  if (!moneyData.value) return 0
-  const totalValue = (moneyData.value.money + (moneyData.value.usedMoney || 0))
+  if (!moneyStore.moneyData) return 0
+  const totalValue = (moneyStore.moneyData.money + (moneyStore.moneyData.usedMoney || 0))
   return totalValue / 100000
 })
 
 // 计算昨日份额价格
 const yesterdayUnitPrice = computed(() => {
-  if (!moneyData.value) return 0
+  if (!moneyStore.moneyData) return 0
   // 昨日总资产 = 今日总资产 - 今日收益
   const yesterdayTotalValue = totalAssets.value - todayProfit.value
   return yesterdayTotalValue / 100000
@@ -180,8 +175,8 @@ const formatAmount = (amount: number): string => {
 
 // 计算总资产（可用资金 + 总市值）
 const totalAssets = computed(() => {
-  if (!moneyData.value) return 0
-  return moneyData.value.money + totalMarketValue.value
+  if (!moneyStore.moneyData) return 0
+  return moneyStore.moneyData.money + totalMarketValue.value
 })
 
 // 获取资金数据
@@ -189,26 +184,11 @@ const fetchMoney = async () => {
   loading.value = true
   
   try {
-    const { data, error: fetchError } = await supabase
-      .from('money')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single()
-    
-    if (fetchError) {
-      throw fetchError
+    // 如果已有缓存数据，不重复请求
+    if (moneyStore.moneyData) {
+      return
     }
-    
-    // 将分转换为元显示
-    if (data) {
-      data.money = data.money / 100
-      if (data.usedMoney) {
-        data.usedMoney = data.usedMoney / 100
-      }
-    }
-    
-    moneyData.value = data
+    await moneyStore.fetchMoney()
   } catch (err) {
     console.error('获取数据失败:', err)
   } finally {
@@ -219,6 +199,10 @@ const fetchMoney = async () => {
 // 获取持股数据
 const fetchPositions = async () => {
   try {
+    // 如果已有缓存数据，不重复请求
+    if (positionStore.positionList.length > 0) {
+      return
+    }
     await positionStore.fetchPositions()
   } catch (err) {
     console.error('获取持股列表失败:', err)
@@ -236,10 +220,15 @@ const toggleSort = () => {
   }
 }
 
-onMounted(() => {
-  fetchMoney()
-  fetchPositions()
-  fetchBuddies()
+onMounted(async () => {
+  // 等待所有数据加载完成
+  await Promise.all([
+    fetchMoney(),
+    fetchPositions(),
+    fetchBuddies()
+  ])
+  // 所有数据加载完成
+  allDataLoaded.value = true
 })
 </script>
 
@@ -279,7 +268,7 @@ onMounted(() => {
           </div>
           <div class="detail-item">
             <span class="detail-label">可用资金</span>
-            <span class="detail-value">{{ moneyData ? moneyData.money.toFixed(2) : '0.00' }}</span>
+            <span class="detail-value">{{ moneyStore.moneyData ? moneyStore.moneyData.money.toFixed(2) : '0.00' }}</span>
           </div>
         </div>
       </div>
@@ -301,9 +290,13 @@ onMounted(() => {
             <div class="buddy-name">{{ buddy.name }}</div>
             <div class="buddy-asset-row">
               <div class="buddy-asset">
-                持有金额：¥{{ getBuddyAsset(buddy).toFixed(2) }}
+                持有金额：<span v-if="allDataLoaded">¥{{ getBuddyAsset(buddy).toFixed(2) }}</span><span v-else class="loading-text">计算中...</span>
               </div>
-              <div v-if="!showTradingData" class="buddy-profit">
+              <!-- 只有所有数据加载完成才显示收益 -->
+              <div v-if="!allDataLoaded" class="buddy-profit loading-text">
+                -
+              </div>
+              <div v-else-if="!showTradingData" class="buddy-profit">
                 -
               </div>
               <div 
@@ -503,6 +496,10 @@ onMounted(() => {
 .buddy-asset {
   font-size: 14px;
   color: #6b7280;
+  
+  .loading-text {
+    color: #9ca3af;
+  }
 }
 
 .buddy-profit {
@@ -515,6 +512,11 @@ onMounted(() => {
   
   &.profit-down {
     color: #10b981;
+  }
+  
+  &.loading-text {
+    color: #9ca3af;
+    font-weight: 400;
   }
 }
 

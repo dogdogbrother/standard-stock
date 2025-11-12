@@ -1,19 +1,20 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { showToast } from 'vant'
 
-interface Buddy {
-  id: number
-  name: string
-  avatar?: string
-  heldUnit?: number
-  created_at: string
+interface Props {
+  show: boolean
 }
 
-const loading = ref(false)
-const buddyList = ref<Buddy[]>([])
-const showAddDialog = ref(false)
+interface Emits {
+  (e: 'update:show', value: boolean): void
+  (e: 'success'): void
+}
+
+const props = defineProps<Props>()
+const emit = defineEmits<Emits>()
+
 const buddyForm = ref({
   name: '',
   money: '',
@@ -22,37 +23,6 @@ const buddyForm = ref({
 const uploading = ref(false)
 const avatarPreview = ref('')
 const fileInputRef = ref<HTMLInputElement | null>(null)
-
-// 获取伙伴列表
-const fetchBuddies = async () => {
-  loading.value = true
-  try {
-    const { data, error } = await supabase
-      .from('buddy')
-      .select('*')
-      .order('created_at', { ascending: false })
-    
-    if (error) throw error
-    
-    buddyList.value = data || []
-  } catch (err) {
-    console.error('获取伙伴列表失败:', err)
-    showToast('获取伙伴列表失败')
-  } finally {
-    loading.value = false
-  }
-}
-
-// 打开添加伙伴对话框
-const openAddDialog = () => {
-  buddyForm.value = {
-    name: '',
-    money: '',
-    avatar: ''
-  }
-  avatarPreview.value = ''
-  showAddDialog.value = true
-}
 
 // 选择文件
 const selectFile = () => {
@@ -144,14 +114,6 @@ const beforeCloseDialog = async (action: string) => {
   return true
 }
 
-// 格式化份额显示，去掉尾部的0
-const formatUnit = (unit: number | undefined): string => {
-  if (!unit) return '0'
-  // 保留4位小数后，去掉尾部的0
-  return parseFloat(unit.toFixed(4)).toString()
-}
-
-
 // 添加伙伴
 const addBuddy = async () => {
   const { name, money, avatar } = buddyForm.value
@@ -200,7 +162,13 @@ const addBuddy = async () => {
     if (orderError) throw orderError
     
     showToast('添加伙伴成功，份额将在次日确认')
-    fetchBuddies()
+    
+    // 重置表单
+    resetForm()
+    
+    // 通知父组件刷新列表
+    emit('success')
+    
     return true
   } catch (err) {
     console.error('添加伙伴失败:', err)
@@ -209,232 +177,96 @@ const addBuddy = async () => {
   }
 }
 
-onMounted(() => {
-  fetchBuddies()
-})
+// 重置表单
+const resetForm = () => {
+  buddyForm.value = {
+    name: '',
+    money: '',
+    avatar: ''
+  }
+  avatarPreview.value = ''
+}
+
+// 监听对话框显示状态，显示时重置表单
+const handleDialogShow = (value: boolean) => {
+  if (value) {
+    resetForm()
+  }
+}
 </script>
 
 <template>
-  <div class="buddy-page">
-    <div class="header">
-      <h2>伙伴中心</h2>
-      <van-button 
-        type="primary" 
-        size="small"
-        icon="plus"
-        @click="openAddDialog"
+  <van-dialog
+    :show="props.show"
+    @update:show="(value) => { handleDialogShow(value); emit('update:show', value) }"
+    title="拉入伙伴"
+    show-cancel-button
+    :before-close="beforeCloseDialog"
+  >
+    <div class="dialog-content">
+      <van-field
+        v-model="buddyForm.name"
+        label="名称"
+        placeholder="请输入伙伴名称"
+        required
+      />
+      <van-field
+        v-model="buddyForm.money"
+        label="资产"
+        type="number"
+        placeholder="请输入资产金额"
+        required
       >
-        拉入伙伴
-      </van-button>
-    </div>
-    
-    <div v-if="loading" class="loading">
-      <van-loading size="24px" />
-      <span>加载中...</span>
-    </div>
-    
-    <div v-else-if="buddyList.length === 0" class="empty">
-      <van-icon name="friends-o" class="icon" />
-      <p>暂无伙伴，快去添加吧~</p>
-    </div>
-    
-    <div v-else class="buddy-list">
-      <div 
-        v-for="buddy in buddyList" 
-        :key="buddy.id" 
-        class="buddy-item"
-      >
-        <div class="buddy-avatar">
-          <img v-if="buddy.avatar" :src="buddy.avatar" alt="头像" />
-          <van-icon v-else name="user-o" />
-        </div>
-        <div class="buddy-info">
-          <div class="buddy-name">{{ buddy.name }}</div>
-          <div class="buddy-unit">
-            持有份额：{{ formatUnit(buddy.heldUnit) }}
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <!-- 添加伙伴对话框 -->
-    <van-dialog
-      v-model:show="showAddDialog"
-      title="拉入伙伴"
-      show-cancel-button
-      :before-close="beforeCloseDialog"
-    >
-      <div class="dialog-content">
-        <van-field
-          v-model="buddyForm.name"
-          label="名称"
-          placeholder="请输入伙伴名称"
-          required
-        />
-        <van-field
-          v-model="buddyForm.money"
-          label="资产"
-          type="number"
-          placeholder="请输入资产金额"
-          required
-        >
-          <template #right-icon>
-            <span class="unit">元</span>
-          </template>
-        </van-field>
-        
-        <!-- 头像上传 -->
-        <div class="avatar-upload-field">
-          <div class="field-label">头像</div>
-          <div class="field-body">
-            <!-- 隐藏的文件输入 -->
-            <input
-              ref="fileInputRef"
-              type="file"
-              accept="image/*"
-              style="display: none"
-              @change="handleFileChange"
-            />
-            
-            <!-- 头像预览或上传按钮 -->
-            <div class="avatar-container">
-              <div 
-                v-if="avatarPreview || buddyForm.avatar" 
-                class="avatar-preview"
-                @click="selectFile"
-              >
-                <img :src="avatarPreview || buddyForm.avatar" alt="头像预览" />
-                <div class="avatar-mask">
-                  <van-icon name="photograph" size="20" />
-                  <span>重新选择</span>
-                </div>
-              </div>
-              <div v-else class="avatar-upload-btn" @click="selectFile">
-                <van-icon name="photograph" size="24" />
-                <span>选择图片</span>
-              </div>
-              
-              <!-- 上传中状态 -->
-              <div v-if="uploading" class="uploading-overlay">
-                <van-loading size="20px" />
+        <template #right-icon>
+          <span class="unit">元</span>
+        </template>
+      </van-field>
+      
+      <!-- 头像上传 -->
+      <div class="avatar-upload-field">
+        <div class="field-label">头像</div>
+        <div class="field-body">
+          <!-- 隐藏的文件输入 -->
+          <input
+            ref="fileInputRef"
+            type="file"
+            accept="image/*"
+            style="display: none"
+            @change="handleFileChange"
+          />
+          
+          <!-- 头像预览或上传按钮 -->
+          <div class="avatar-container">
+            <div 
+              v-if="avatarPreview || buddyForm.avatar" 
+              class="avatar-preview"
+              @click="selectFile"
+            >
+              <img :src="avatarPreview || buddyForm.avatar" alt="头像预览" />
+              <div class="avatar-mask">
+                <van-icon name="photograph" size="20" />
+                <span>重新选择</span>
               </div>
             </div>
+            <div v-else class="avatar-upload-btn" @click="selectFile">
+              <van-icon name="photograph" size="24" />
+              <span>选择图片</span>
+            </div>
             
-            <div class="field-tip">支持 JPG、PNG、WEBP，不超过 2MB</div>
+            <!-- 上传中状态 -->
+            <div v-if="uploading" class="uploading-overlay">
+              <van-loading size="20px" />
+            </div>
           </div>
+          
+          <div class="field-tip">支持 JPG、PNG、WEBP，不超过 2MB</div>
         </div>
       </div>
-    </van-dialog>
-  </div>
+    </div>
+  </van-dialog>
 </template>
 
 <style scoped lang="less">
-.buddy-page {
-  min-height: calc(100vh - 50px);
-  padding: 16px;
-  background-color: #f5f5f5;
-}
-
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-  padding: 0 4px;
-}
-
-h2 {
-  font-size: 20px;
-  font-weight: 600;
-  color: #111827;
-  margin: 0;
-}
-
-.loading,
-.empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 60px 20px;
-  color: #6b7280;
-  
-  .icon {
-    font-size: 48px;
-    color: @primary-color;
-  }
-  
-  p {
-    font-size: 14px;
-    margin: 0;
-  }
-}
-
-.buddy-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.buddy-item {
-  display: flex;
-  align-items: center;
-  padding: 16px;
-  background-color: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s;
-  
-  &:active {
-    transform: scale(0.98);
-  }
-}
-
-.buddy-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background-color: #f3f4f6;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  margin-right: 12px;
-  flex-shrink: 0;
-  
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-  
-  .van-icon {
-    font-size: 24px;
-    color: #9ca3af;
-  }
-}
-
-.buddy-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.buddy-name {
-  font-size: 16px;
-  font-weight: 600;
-  color: #111827;
-  margin-bottom: 6px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.buddy-unit {
-  font-size: 14px;
-  color: #6b7280;
-}
-
 .dialog-content {
   padding: 16px 0;
 }
@@ -565,3 +397,4 @@ h2 {
   line-height: 16px;
 }
 </style>
+

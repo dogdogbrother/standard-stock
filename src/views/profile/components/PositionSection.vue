@@ -15,8 +15,12 @@ const positionLoading = computed(() => positionStore.loading)
 const showAddDialog = ref(false)
 
 // 获取持股列表
-const fetchPositions = async () => {
+const fetchPositions = async (force = false) => {
   try {
+    // 如果已有缓存且不是强制刷新，则不重复请求
+    if (!force && positionStore.positionList.length > 0) {
+      return
+    }
     await positionStore.fetchPositions()
   } catch (err) {
     showToast('获取持股列表失败')
@@ -29,24 +33,28 @@ const openAddDialog = () => {
 }
 
 // 添加成功后刷新列表
-const handleAddSuccess = () => {
-  fetchPositions()
+const handleAddSuccess = async () => {
+  // AddPositionDialog 直接操作数据库，需要刷新 store 缓存
+  await positionStore.fetchPositions()
+  // 通知父组件刷新资金信息
   emit('position-changed')
 }
 
 // 减仓成功后刷新列表
 const handleReduceSuccess = () => {
-  fetchPositions()
+  // PositionList 的减仓操作已经通过 store 完成，store 内部会刷新
+  // 只需要通知父组件刷新资金信息
   emit('position-changed')
 }
 
-// 暴露刷新方法供父组件调用
+// 暴露刷新方法供父组件调用（下拉刷新时使用）
 const refresh = async () => {
-  await fetchPositions()
+  await fetchPositions(true) // 强制刷新
 }
 
 onMounted(() => {
-  fetchPositions()
+  // 只在缓存为空时才请求
+  fetchPositions(false)
 })
 
 defineExpose({

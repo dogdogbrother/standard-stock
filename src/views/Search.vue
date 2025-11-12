@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onBeforeUnmount, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { supabase } from '@/lib/supabase'
 import { showToast } from 'vant'
+import { useWatchlistStore } from '@/stores/watchlist'
 
 interface StockItem {
   code: string
@@ -24,6 +24,7 @@ interface TencentSearchResponse {
 const STOCK_SEARCH_API = import.meta.env.VITE_STOCK_SEARCH_API || 'http://localhost:54321/functions/v1/stock-search'
 
 const router = useRouter()
+const watchlistStore = useWatchlistStore()
 const keyword = ref('')
 const searchRef = ref<{ focus: () => void } | null>(null)
 const results = ref<StockItem[]>([])
@@ -139,33 +140,27 @@ const addToWatchlist = async (item: StockItem, event: Event) => {
   event.stopPropagation()
   
   try {
-    const { error } = await supabase
-      .from('watchlist')
-      .insert({
-        invt: item.exchange.toLowerCase(), // 'SH' -> 'sh', 'SZ' -> 'sz'
-        stock: item.code // 直接使用字符串
-      })
-    
-    if (error) {
-      // 如果是重复添加的错误
-      if (error.code === '23505') {
-        showToast('已在自选中')
-      } else {
-        throw error
-      }
-      return
-    }
+    await watchlistStore.addToWatchlist(
+      item.code,
+      item.exchange.toLowerCase() as 'sh' | 'sz'
+    )
     
     showToast({
       message: '添加自选成功',
       icon: 'success'
     })
-  } catch (err) {
+  } catch (err: any) {
     console.error('添加到自选失败:', err)
-    showToast({
-      message: '添加失败',
-      icon: 'fail'
-    })
+    
+    // 检查是否是重复添加的错误（23505是 PostgreSQL 的唯一约束错误代码）
+    if (err?.code === '23505' || err?.message?.includes('duplicate')) {
+      showToast('已在自选中')
+    } else {
+      showToast({
+        message: '添加失败',
+        icon: 'fail'
+      })
+    }
   }
 }
 

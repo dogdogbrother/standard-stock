@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { usePositionStore, type Position } from '@/stores/position'
 import { supabase } from '@/lib/supabase'
@@ -17,6 +18,7 @@ const emit = defineEmits<{
   (e: 'reduce-success'): void
 }>()
 
+const router = useRouter()
 const positionStore = usePositionStore()
 
 // 判断是否是交易时间（工作日 9:30 之后）
@@ -42,6 +44,11 @@ const isTradingTime = (): boolean => {
 
 // 判断是否显示交易数据
 const showTradingData = isTradingTime()
+
+// 跳转到股票详情页
+const goToStockDetail = (position: Position) => {
+  router.push(`/stock/${position.invt}/${position.stock}`)
+}
 
 // 减仓相关
 const showReduceDialog = ref(false)
@@ -296,6 +303,7 @@ const confirmReduce = async () => {
       v-for="position in positionList" 
       :key="position.id" 
       class="position-item"
+      @click="goToStockDetail(position)"
     >
       <div class="position-header">
         <div class="stock-info">
@@ -363,7 +371,7 @@ const confirmReduce = async () => {
           v-if="props.showReduceButton"
           type="warning" 
           size="mini"
-          @click="openReduceDialog(position)"
+          @click.stop="openReduceDialog(position)"
         >
           减仓
         </van-button>
@@ -446,6 +454,16 @@ const confirmReduce = async () => {
   background-color: #ffffff;
   border-radius: 8px;
   border-left: 3px solid #1989fa;
+  cursor: pointer;
+  transition: all 0.2s;
+  
+  &:hover {
+    background-color: #f9fafb;
+  }
+  
+  &:active {
+    transform: scale(0.98);
+  }
 }
 
 .position-header {

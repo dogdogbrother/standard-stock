@@ -160,12 +160,26 @@ export const usePositionStore = defineStore('position', () => {
     await fetchPositions()
   }
 
+  // 从缓存中检查是否在持仓中（同步方法，立即返回）
+  const isInPositionCache = (stock: string, invt: string): boolean => {
+    return positionList.value.some(pos => pos.stock === stock && pos.invt === invt)
+  }
+
+  // 获取持仓股票的 Set 集合（用于快速判断）
+  const getPositionStocksSet = (): Set<string> => {
+    return new Set(
+      positionList.value.map(pos => `${pos.invt}${pos.stock}`)
+    )
+  }
+
   return {
     positionList,
     loading,
     fetchPositions,
     updatePosition,
-    deletePosition
+    deletePosition,
+    isInPositionCache,
+    getPositionStocksSet
   }
 })
 

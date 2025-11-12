@@ -1,22 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { supabase } from '@/lib/supabase'
 import { showToast } from 'vant'
 import { usePositionStore } from '@/stores/position'
+import { useMoneyStore } from '@/stores/money'
 
-interface MoneyRecord {
-  id: number
-  money: number
-  created_at: string
-}
-
-const loading = ref(false)
-const moneyData = ref<MoneyRecord | null>(null)
-const error = ref('')
 const showEditDialog = ref(false)
 const editAmount = ref('')
 
 const positionStore = usePositionStore()
+const moneyStore = useMoneyStore()
 
 // 计算总市值
 const totalMarketValue = computed(() => {
@@ -30,47 +22,14 @@ const totalMarketValue = computed(() => {
 
 // 计算总资产（可用资金 + 总市值）
 const totalAssets = computed(() => {
-  if (!moneyData.value) return 0
-  return moneyData.value.money + totalMarketValue.value
+  if (!moneyStore.moneyData) return 0
+  return moneyStore.moneyData.money + totalMarketValue.value
 })
-
-
-// 获取 money 数据
-const fetchMoney = async () => {
-  loading.value = true
-  error.value = ''
-  
-  try {
-    const { data, error: fetchError } = await supabase
-      .from('money')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single() // 返回单条记录
-    
-    if (fetchError) {
-      throw fetchError
-    }
-    
-    // 将分转换为元显示
-    if (data) {
-      data.money = data.money / 100
-    }
-    
-    moneyData.value = data
-    console.log('获取到的数据:', data)
-  } catch (err) {
-    console.error('获取数据失败:', err)
-    error.value = err instanceof Error ? err.message : '获取数据失败'
-  } finally {
-    loading.value = false
-  }
-}
 
 // 打开修改对话框
 const openEditDialog = () => {
-  if (!moneyData.value) return
-  editAmount.value = moneyData.value.money.toString()
+  if (!moneyStore.moneyData) return
+  editAmount.value = moneyStore.moneyData.money.toString()
   showEditDialog.value = true
 }
 
@@ -102,32 +61,7 @@ const confirmEdit = async () => {
   }
   
   try {
-    // 将元转换为分存储到数据库
-    const amountInCents = Math.round(amountInYuan * 100)
-    
-    // 获取最新的 money 记录的 id
-    if (!moneyData.value || !moneyData.value.id) {
-      showToast('获取数据失败')
-      return
-    }
-    
-    // 更新最新的记录
-    const { error: updateError } = await supabase
-      .from('money')
-      .update({ money: amountInCents })
-      .eq('id', moneyData.value.id)
-    
-    if (updateError) {
-      showToast('更新失败')
-      console.error('更新失败:', updateError)
-      return
-    }
-    
-    // 更新本地数据（保持元为单位）
-    if (moneyData.value) {
-      moneyData.value.money = amountInYuan
-    }
-    
+    await moneyStore.updateMoney(amountInYuan)
     showEditDialog.value = false
     showToast('修正成功')
   } catch (err) {
@@ -136,13 +70,16 @@ const confirmEdit = async () => {
   }
 }
 
-// 暴露刷新方法供父组件调用
+// 暴露刷新方法供父组件调用（下拉刷新时使用）
 const refresh = async () => {
-  await fetchMoney()
+  await moneyStore.refreshMoney()
 }
 
-onMounted(() => {
-  fetchMoney()
+onMounted(async () => {
+  // 只在缓存为空时才请求
+  if (!moneyStore.moneyData) {
+    await moneyStore.fetchMoney()
+  }
 })
 
 defineExpose({
@@ -156,17 +93,17 @@ defineExpose({
       <h3>资金信息</h3>
     </div>
     
-    <div v-if="loading" class="loading">
+    <div v-if="moneyStore.loading" class="loading">
       <van-loading size="24px" />
       <span>加载中...</span>
     </div>
     
-    <div v-else-if="error" class="error">
+    <div v-else-if="moneyStore.error" class="error">
       <van-icon name="warning-o" />
-      <p>{{ error }}</p>
+      <p>{{ moneyStore.error }}</p>
     </div>
     
-    <div v-else-if="moneyData" class="money-info">
+    <div v-else-if="moneyStore.moneyData" class="money-info">
       <!-- 总资产 -->
       <div class="total-assets">
         {{ totalAssets.toFixed(2) }}
@@ -177,7 +114,7 @@ defineExpose({
         <div class="money-item">
           <span class="label">可用资金</span>
           <div class="value-with-button">
-            <span class="value">{{ moneyData.money.toFixed(2) }}</span>
+            <span class="value">{{ moneyStore.moneyData.money.toFixed(2) }}</span>
             <van-button 
               type="primary" 
               size="mini"

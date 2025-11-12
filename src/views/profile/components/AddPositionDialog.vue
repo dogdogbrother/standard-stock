@@ -2,11 +2,14 @@
 import { ref, watch, nextTick } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { showToast, showConfirmDialog } from 'vant'
+import { useMoneyStore } from '@/stores/money'
 
 const visible = defineModel<boolean>('visible', { default: false })
 const emit = defineEmits<{
   success: []
 }>()
+
+const moneyStore = useMoneyStore()
 
 const positionForm = ref({
   stock: '',
@@ -188,66 +191,11 @@ const beforeCloseDialog = async (action: string) => {
   return true
 }
 
-// 更新资金信息
+// 更新资金信息（录入持股时减少可用资金，传入负值）
 const updateMoneyInfo = async (totalAmount: number) => {
   try {
-    // 获取今天的开始和结束时间
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const todayISO = today.toISOString()
-    
-    const tomorrow = new Date(today)
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    const tomorrowISO = tomorrow.toISOString()
-    
-    // 查找今天是否已有记录
-    const { data: todayMoney, error: todayError } = await supabase
-      .from('money')
-      .select('*')
-      .gte('created_at', todayISO)
-      .lt('created_at', tomorrowISO)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-    
-    if (todayError) throw todayError
-    
-    // 计算新的资金数据（金额单位：分）
-    const totalAmountInCents = Math.round(totalAmount * 100)
-    
-    if (todayMoney) {
-      // 今天已有记录，更新它（只更新money，usedMoney由定时任务更新）
-      const newMoney = todayMoney.money - totalAmountInCents
-      
-      const { error: updateError } = await supabase
-        .from('money')
-        .update({
-          money: newMoney
-        })
-        .eq('id', todayMoney.id)
-      
-      if (updateError) throw updateError
-    } else {
-      // 今天没有记录，获取最新记录并插入新记录
-      const { data: latestMoney, error: fetchError } = await supabase
-        .from('money')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single()
-      
-      if (fetchError) throw fetchError
-      
-      const newMoney = latestMoney.money - totalAmountInCents
-      
-      const { error: insertError } = await supabase
-        .from('money')
-        .insert({
-          money: newMoney
-        })
-      
-      if (insertError) throw insertError
-    }
+    // 录入持股时需要减少可用资金，所以传入负值
+    await moneyStore.updateMoneyByAmount(-totalAmount)
   } catch (err) {
     console.error('更新资金信息失败:', err)
     throw err
