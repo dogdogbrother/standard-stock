@@ -8,7 +8,6 @@ interface Buddy {
   name: string
   avatar?: string
   heldUnit?: number
-  heldUnitStatus?: number
   created_at: string
 }
 
@@ -152,27 +151,6 @@ const formatUnit = (unit: number | undefined): string => {
   return parseFloat(unit.toFixed(4)).toString()
 }
 
-// 判断是否是工作日交易时间（9:30-15:01）
-const isTradingTime = (): boolean => {
-  const now = new Date()
-  const day = now.getDay() // 0=周日, 1-5=周一至周五, 6=周六
-  
-  // 周末直接返回 false
-  if (day === 0 || day === 6) {
-    return false
-  }
-  
-  // 工作日判断时间
-  const hours = now.getHours()
-  const minutes = now.getMinutes()
-  const currentTime = hours * 60 + minutes
-  
-  // 9:30 = 570分钟, 15:01 = 901分钟
-  const tradingStart = 9 * 60 + 30 // 570
-  const tradingEnd = 15 * 60 + 1 // 901
-  
-  return currentTime >= tradingStart && currentTime <= tradingEnd
-}
 
 // 添加伙伴
 const addBuddy = async () => {
@@ -189,70 +167,39 @@ const addBuddy = async () => {
   }
   
   try {
-    // money 参数用于计算份额并存储到 buddy 表
+    // money 参数用于存储到 buddy 表
     const buddyMoneyInYuan = parseFloat(money)
     const buddyMoneyInCents = Math.round(buddyMoneyInYuan * 100) // 转换为分
     
-    // 1. 获取 money 表的最新数据
-    const { data: moneyData, error: moneyError } = await supabase
-      .from('money')
-      .select('money, usedMoney')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single()
-    
-    if (moneyError) throw moneyError
-    
-    // 2. 计算份额价格 = (money + usedMoney) / 100000
-    const totalValue = (moneyData.money + (moneyData.usedMoney || 0)) / 100 // 转换为元
-    const unitPrice = totalValue / 100000
-    
-    // 3. 判断交易时间，设置 heldUnitStatus
-    const isTrading = isTradingTime()
-    let heldUnitStatus = 0 // 默认待确认
-    let heldUnit = 0
-    
-    if (!isTrading) {
-      // 非交易时间，状态设为已确认
-      heldUnitStatus = 1
-      // 4. 计算应有份额 = 伙伴资产 / 份额价格（保留4位小数）
-      heldUnit = parseFloat((buddyMoneyInYuan / unitPrice).toFixed(4))
-    }
-    
-    // 5. 插入 buddy 数据（包含 money 字段，单位：分）
-    const { error: buddyError } = await supabase
+    // 1. 插入 buddy 数据
+    // heldUnit = 0（待确认），由定时任务统一处理份额分配
+    const { data: newBuddy, error: buddyError } = await supabase
       .from('buddy')
       .insert([{
         name: name.trim(),
         avatar: avatar.trim() || null,
         money: buddyMoneyInCents,
-        heldUnit: heldUnit,
-        heldUnitStatus: heldUnitStatus
+        heldUnit: 0 // 待定时任务确认
       }])
+      .select()
+      .single()
     
     if (buddyError) throw buddyError
     
-    // 6. 如果是已确认状态，更新 unit 表的 held 值
-    if (heldUnitStatus === 1 && heldUnit > 0) {
-      // 获取当前 unit 表数据（只有一条记录）
-      const { data: unitData, error: unitFetchError } = await supabase
-        .from('unit')
-        .select('id, held')
-        .single()
-      
-      if (unitFetchError) throw unitFetchError
-      
-      // 更新 held 值
-      const newHeld = parseFloat(((unitData.held || 0) + heldUnit).toFixed(4))
-      const { error: unitUpdateError } = await supabase
-        .from('unit')
-        .update({ held: newHeld })
-        .eq('id', unitData.id)
-      
-      if (unitUpdateError) throw unitUpdateError
-    }
+    // 2. 创建 buddyOrder 记录
+    // heldUnitStatus = 0（待确认），由定时任务统一确认份额
+    const { error: orderError } = await supabase
+      .from('buddyOrder')
+      .insert([{
+        buddyId: newBuddy.id,
+        money: buddyMoneyInCents,
+        heldUnitStatus: 0, // 待定时任务确认
+        track_type: 'increase' // 拉入伙伴视为加仓操作
+      }])
     
-    showToast('添加伙伴成功')
+    if (orderError) throw orderError
+    
+    showToast('添加伙伴成功，份额将在次日确认')
     fetchBuddies()
     return true
   } catch (err) {
@@ -305,12 +252,6 @@ onMounted(() => {
           <div class="buddy-name">{{ buddy.name }}</div>
           <div class="buddy-unit">
             持有份额：{{ formatUnit(buddy.heldUnit) }}
-            <span 
-              class="unit-status" 
-              :class="buddy.heldUnitStatus === 1 ? 'confirmed' : 'pending'"
-            >
-              {{ buddy.heldUnitStatus === 1 ? '已确认' : '待确认' }}
-            </span>
           </div>
         </div>
       </div>
@@ -492,27 +433,6 @@ h2 {
 .buddy-unit {
   font-size: 14px;
   color: #6b7280;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.unit-status {
-  display: inline-block;
-  padding: 2px 8px;
-  font-size: 11px;
-  border-radius: 10px;
-  font-weight: 500;
-  
-  &.confirmed {
-    color: #10b981;
-    background-color: #d1fae5;
-  }
-  
-  &.pending {
-    color: #f59e0b;
-    background-color: #fef3c7;
-  }
 }
 
 .dialog-content {

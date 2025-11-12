@@ -84,7 +84,7 @@
   | avatar  | 头像的url地址 | text |
   | money  | 金额(单位分) | int4 |
   | heldUnit | 持有的股票份额(保留小数点4位) | float4 |
-  | heldUnitStatus | 持有份额状态(0=待确认,1=已确认) | int2 |
+  <!-- | heldUnitStatus | 持有份额状态(0=待确认,1=已确认) | int2 | -->
 
 - money 资产表
   | 字段    | 含义 | 类型 |
@@ -115,10 +115,12 @@
 
 - buddyOrder 伙伴订单表
   每次拉入新伙伴或者已有伙伴加仓或减仓都会生成一条数据.
+  | 字段    | 含义 | 类型 |
+  | :---:   | :---: | :---: |
   | money   | 操作金额(单位:分) | int4 |
-  | heldUnitStatus | 持有份额状态(0=待确认,1=已确认) | int2 |
+  | heldUnitStatus | 持有份额状态(0=待确认,1=已确认,2=份额不足) | int2 |
   | track_type  | 操作类型(increase加仓或reduce减仓) | track_type  |
-  | buddyId  | 伙伴Id | int4 |
+  | buddyId  | 关联的伙伴Id | int4 |
   
 
 
@@ -126,14 +128,28 @@
 
 ## 伙伴份额分配逻辑
 
-当拉入伙伴时，根据以下逻辑计算和分配份额：
+当拉入伙伴时，根据以下逻辑处理：
 
-1. **份额价格计算**：份额价格 = (money表的money + usedMoney) / 100000
-2. **应有份额计算**：应有份额 = 伙伴资产 / 份额价格（保留4位小数）
-3. **交易时间判断**：
-   - 工作日 9:30-15:01 为交易时间
-   - 交易时间内拉入伙伴：heldUnitStatus = 0（待确认），heldUnit = 0
-   - 非交易时间拉入伙伴：heldUnitStatus = 1（已确认），计算并设置 heldUnit
-4. **同步更新**：当 heldUnitStatus = 1 时，同步更新 unit 表的 held 值
-5. **定时任务**：usedMoney 在工作日下午 3:01 由定时任务更新
+1. **前端操作**（拉入伙伴时）：
+   - 插入 buddy 表：`heldUnit = 0`（待确认）
+   - 创建 buddyOrder 记录：`heldUnitStatus = 0`（待确认），`track_type = 'increase'`
+   - 显示提示："添加伙伴成功，份额将在次日确认"
+   - **不检查份额充足**，不更新 unit 表
+
+2. **后端处理**（定时任务）：
+   - **份额价格计算**：份额价格 = (money表的money + usedMoney) / 100000
+   - **应有份额计算**：应有份额 = 伙伴资产 / 份额价格（保留4位小数）
+   - **份额检查**：
+     - 如果 held + 应有份额 > total：
+       - heldUnitStatus = 2（份额不足）
+       - buddy.heldUnit = 0
+       - 不更新 unit 表
+     - 如果 held + 应有份额 ≤ total：
+       - heldUnitStatus = 1（已确认）
+       - buddy.heldUnit = 应有份额
+       - 更新 unit 表的 held 值
+
+3. **定时任务**：
+   - `update-used-money`: 工作日下午 3:01 更新 usedMoney（持仓市值）
+   - `confirm-buddy-orders`: 工作日次日凌晨 00:01 确认前一天的待确认订单（heldUnitStatus = 0 → 1 或 2）
   
