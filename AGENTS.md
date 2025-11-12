@@ -82,6 +82,7 @@
   | :---:   | :---: | 
   | name    | 名称 | text |
   | avatar  | 头像的url地址 | text |
+  | money  | 金额(单位分) | int4 |
   | heldUnit | 持有的股票份额(保留小数点4位) | float4 |
   | heldUnitStatus | 持有份额状态(0=待确认,1=已确认) | int2 |
 
@@ -110,7 +111,16 @@
   | money   | 操作金额(单位:分) | int4 |
   | price  | 股票价格(单位:分) | float4 |
   | num  | 股票数量 | int4 |
-  | track_type  | 操作类型 | track_type increase加仓或reduce减仓 |
+  | track_type  | 操作类型(increase加仓或reduce减仓) | track_type  |
+
+- buddyOrder 伙伴订单表
+  每次拉入新伙伴或者已有伙伴加仓或减仓都会生成一条数据.
+  | money   | 操作金额(单位:分) | int4 |
+  | heldUnitStatus | 持有份额状态(0=待确认,1=已确认) | int2 |
+  | track_type  | 操作类型(increase加仓或reduce减仓) | track_type  |
+  | buddyId  | 伙伴Id | int4 |
+  
+
 
 - unit 份额表 这表只有一条数据,total是固定值100000(这个不会被更改),buddy伙伴可以购买份额,held就是被购买走了的份额.
 

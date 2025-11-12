@@ -19,6 +19,30 @@ const emit = defineEmits<{
 
 const positionStore = usePositionStore()
 
+// 判断是否是交易时间（工作日 9:30 之后）
+const isTradingTime = (): boolean => {
+  const now = new Date()
+  const day = now.getDay() // 0=周日, 1-5=周一至周五, 6=周六
+  
+  // 周末直接返回 false
+  if (day === 0 || day === 6) {
+    return false
+  }
+  
+  // 工作日判断时间
+  const hours = now.getHours()
+  const minutes = now.getMinutes()
+  const currentTime = hours * 60 + minutes
+  
+  // 9:30 = 570分钟
+  const tradingStart = 9 * 60 + 30 // 570
+  
+  return currentTime >= tradingStart
+}
+
+// 判断是否显示交易数据
+const showTradingData = isTradingTime()
+
 // 减仓相关
 const showReduceDialog = ref(false)
 const reduceForm = ref({
@@ -288,7 +312,13 @@ const confirmReduce = async () => {
           <span v-else class="current-price loading-text">--</span>
           
           <span 
-            v-if="position.changePercent !== undefined"
+            v-if="!showTradingData"
+            class="change-percent"
+          >
+            -
+          </span>
+          <span 
+            v-else-if="position.changePercent !== undefined"
             class="change-percent"
             :class="{
               'price-up': position.changePercent > 0,
@@ -305,11 +335,11 @@ const confirmReduce = async () => {
           ¥{{ getMarketValue(position).toFixed(2) }}
         </span>
         <span class="detail-item">
-          <span class="label">成本：</span>
+          <span class="label">成本:</span>
           <span class="value">{{ position.cost.toFixed(3) }}</span>
         </span>
         <span class="detail-item">
-          <span class="label">持股：</span>
+          <span class="label">持股:</span>
           <span class="value">{{ position.quantity }}</span>
         </span>
       </div>
@@ -317,7 +347,7 @@ const confirmReduce = async () => {
       <!-- 盈亏信息和减仓按钮 -->
       <div class="profit-loss-row">
         <div v-if="position.currentPrice !== undefined" class="profit-loss">
-          <span class="label">盈亏：</span>
+          <span class="label">盈亏:</span>
           <span 
             class="value"
             :class="{

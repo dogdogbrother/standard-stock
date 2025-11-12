@@ -7,7 +7,9 @@
 1. 获取 `position` 表的所有持仓数据
 2. 调用东方财富 API 获取股票最新价
 3. 计算总市值（最新价 × 持股数）
-4. 更新 `money` 表的 `usedMoney` 字段
+4. 检查当天是否已有 `money` 记录：
+   - 如果有：更新当天记录的 `usedMoney` 字段
+   - 如果没有：创建新的 `money` 记录（保留历史数据用于收益折线图）
 
 ## 部署
 
@@ -89,6 +91,8 @@ curl -X POST https://your-project.supabase.co/functions/v1/update-used-money \
 ```json
 {
   "success": true,
+  "action": "created",
+  "recordId": 123,
   "usedMoney": 150000.50,
   "usedMoneyInCents": 15000050,
   "positionCount": 5,
@@ -102,6 +106,10 @@ curl -X POST https://your-project.supabase.co/functions/v1/update-used-money \
   ]
 }
 ```
+
+**字段说明**：
+- `action`: 操作类型，`created`（创建新记录）或 `updated`（更新已有记录）
+- `recordId`: 操作的记录 ID
 
 ## 错误处理
 
@@ -117,4 +125,6 @@ curl -X POST https://your-project.supabase.co/functions/v1/update-used-money \
 - 股市收盘时间为下午 3:00，定时任务设置在 3:01 确保获取到当天收盘价
 - 只在工作日执行，周末和节假日不执行
 - API 返回的价格单位是"分"，需要除以 100
+- 每天第一次执行时创建新记录，当天重复执行则更新记录，确保历史数据完整
+- 使用北京时间（UTC+8）判断日期，避免时区问题
 

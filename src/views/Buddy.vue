@@ -189,8 +189,9 @@ const addBuddy = async () => {
   }
   
   try {
-    // money 参数仅用于计算份额
+    // money 参数用于计算份额并存储到 buddy 表
     const buddyMoneyInYuan = parseFloat(money)
+    const buddyMoneyInCents = Math.round(buddyMoneyInYuan * 100) // 转换为分
     
     // 1. 获取 money 表的最新数据
     const { data: moneyData, error: moneyError } = await supabase
@@ -218,12 +219,13 @@ const addBuddy = async () => {
       heldUnit = parseFloat((buddyMoneyInYuan / unitPrice).toFixed(4))
     }
     
-    // 5. 插入 buddy 数据（不包含 money 字段）
+    // 5. 插入 buddy 数据（包含 money 字段，单位：分）
     const { error: buddyError } = await supabase
       .from('buddy')
       .insert([{
         name: name.trim(),
         avatar: avatar.trim() || null,
+        money: buddyMoneyInCents,
         heldUnit: heldUnit,
         heldUnitStatus: heldUnitStatus
       }])

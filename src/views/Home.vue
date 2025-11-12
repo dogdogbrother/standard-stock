@@ -27,6 +27,30 @@ const sortOrder = ref<'default' | 'desc' | 'asc'>('default')
 const buddyList = ref<Buddy[]>([])
 const buddyLoading = ref(false)
 
+// 判断是否是交易时间（工作日 9:30 之后）
+const isTradingTime = (): boolean => {
+  const now = new Date()
+  const day = now.getDay() // 0=周日, 1-5=周一至周五, 6=周六
+  
+  // 周末直接返回 false
+  if (day === 0 || day === 6) {
+    return false
+  }
+  
+  // 工作日判断时间
+  const hours = now.getHours()
+  const minutes = now.getMinutes()
+  const currentTime = hours * 60 + minutes
+  
+  // 9:30 = 570分钟
+  const tradingStart = 9 * 60 + 30 // 570
+  
+  return currentTime >= tradingStart
+}
+
+// 判断是否显示交易数据
+const showTradingData = isTradingTime()
+
 // 获取伙伴列表
 const fetchBuddies = async () => {
   buddyLoading.value = true
@@ -233,6 +257,13 @@ onMounted(() => {
           <div class="detail-item">
             <span class="detail-label">今日收益</span>
             <span 
+              v-if="!showTradingData"
+              class="detail-value"
+            >
+              -
+            </span>
+            <span 
+              v-else
               class="detail-value"
               :class="{
                 'profit-up': todayProfit > 0,
@@ -272,7 +303,11 @@ onMounted(() => {
               <div class="buddy-asset">
                 持有金额：¥{{ getBuddyAsset(buddy).toFixed(2) }}
               </div>
+              <div v-if="!showTradingData" class="buddy-profit">
+                -
+              </div>
               <div 
+                v-else
                 class="buddy-profit"
                 :class="{
                   'profit-up': getBuddyProfit(buddy) > 0,

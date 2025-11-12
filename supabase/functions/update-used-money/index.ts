@@ -72,16 +72,16 @@ serve(async (req) => {
       throw new Error(`股票详情 API 请求失败: ${response.statusText}`)
     }
 
-    const result = await response.json()
-    console.log('API 返回数据:', JSON.stringify(result))
+    const apiResult = await response.json()
+    console.log('API 返回数据:', JSON.stringify(apiResult))
 
-    if (!result.data?.diff) {
+    if (!apiResult.data?.diff) {
       throw new Error('API 返回数据格式错误')
     }
 
     // 4. 创建股票代码到最新价的映射
     const stockPriceMap = new Map<string, number>()
-    result.data.diff.forEach((item: any) => {
+    apiResult.data.diff.forEach((item: any) => {
       const stockCode = item.f12
       const currentPrice = item.f2 / 100 // 分转元
       stockPriceMap.set(stockCode, currentPrice)
@@ -115,33 +115,82 @@ serve(async (req) => {
     // 6. 转换为分
     const totalUsedMoneyInCents = Math.round(totalUsedMoney * 100)
 
-    // 7. 获取最新的 money 记录并更新
-    const { data: latestMoney, error: fetchMoneyError } = await supabase
+    // 7. 获取今天日期（北京时间）
+    const now = new Date()
+    const beijingTime = new Date(now.getTime() + 8 * 60 * 60 * 1000)
+    const todayStart = new Date(beijingTime.getFullYear(), beijingTime.getMonth(), beijingTime.getDate())
+    const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000)
+
+    console.log('今天日期范围:', { 
+      start: todayStart.toISOString(), 
+      end: todayEnd.toISOString() 
+    })
+
+    // 8. 检查今天是否已有记录
+    const { data: todayMoney, error: fetchTodayError } = await supabase
       .from('money')
       .select('*')
+      .gte('created_at', todayStart.toISOString())
+      .lt('created_at', todayEnd.toISOString())
       .order('created_at', { ascending: false })
       .limit(1)
-      .single()
 
-    if (fetchMoneyError) {
-      throw new Error(`获取 money 记录失败: ${fetchMoneyError.message}`)
+    if (fetchTodayError && fetchTodayError.code !== 'PGRST116') {
+      throw new Error(`查询今日 money 记录失败: ${fetchTodayError.message}`)
     }
 
-    // 8. 更新 usedMoney
-    const { error: updateError } = await supabase
-      .from('money')
-      .update({ usedMoney: totalUsedMoneyInCents })
-      .eq('id', latestMoney.id)
+    let result
+    if (todayMoney && todayMoney.length > 0) {
+      // 9a. 今天已有记录，更新 usedMoney
+      console.log('今天已有记录，更新 usedMoney')
+      const { error: updateError } = await supabase
+        .from('money')
+        .update({ usedMoney: totalUsedMoneyInCents })
+        .eq('id', todayMoney[0].id)
 
-    if (updateError) {
-      throw new Error(`更新 usedMoney 失败: ${updateError.message}`)
+      if (updateError) {
+        throw new Error(`更新 usedMoney 失败: ${updateError.message}`)
+      }
+
+      result = { action: 'updated', id: todayMoney[0].id }
+    } else {
+      // 9b. 今天没有记录，获取最新记录的 money 值，创建新记录
+      console.log('今天没有记录，创建新记录')
+      
+      const { data: latestMoney, error: fetchLatestError } = await supabase
+        .from('money')
+        .select('money')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (fetchLatestError) {
+        throw new Error(`获取最新 money 记录失败: ${fetchLatestError.message}`)
+      }
+
+      const { data: newMoney, error: insertError } = await supabase
+        .from('money')
+        .insert({
+          money: latestMoney.money,
+          usedMoney: totalUsedMoneyInCents
+        })
+        .select()
+        .single()
+
+      if (insertError) {
+        throw new Error(`创建 money 记录失败: ${insertError.message}`)
+      }
+
+      result = { action: 'created', id: newMoney.id }
     }
 
-    console.log('usedMoney 更新成功')
+    console.log('usedMoney 操作成功:', result)
 
     return new Response(
       JSON.stringify({
         success: true,
+        action: result.action,
+        recordId: result.id,
         usedMoney: totalUsedMoney,
         usedMoneyInCents: totalUsedMoneyInCents,
         positionCount: positions.length,
