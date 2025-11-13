@@ -146,7 +146,7 @@ const renderChart = (klines: string[]) => {
   // 解析 K线数据
   const dates: string[] = []
   const klineData: number[][] = [] // [开盘, 收盘, 最低, 最高]
-  const closePrices: number[] = [] // 用于计算MA均线
+  const closePrices: number[] = [] // 用于计算MA均线或分时折线
   
   klines.forEach((line) => {
     const parts = line.split(',')
@@ -161,6 +161,10 @@ const renderChart = (klines: string[]) => {
     klineData.push([openPrice, closePrice, lowPrice, highPrice])
     closePrices.push(closePrice)
   })
+  
+  // 计算昨收价（用于分时图基准线）
+  // 对于分时图，昨收价 = 第一个数据点的开盘价
+  const yesterdayClose = klines.length > 0 ? parseFloat(klines[0].split(',')[1]) : 0
   
   console.log('K线日期范围:', dates.length > 0 ? `${dates[0]} ~ ${dates[dates.length - 1]}` : '无数据')
   console.log('K线日期示例（前5个）:', dates.slice(0, 5))
@@ -226,13 +230,13 @@ const renderChart = (klines: string[]) => {
       left: '0',
       right: '0',
       top: '10',
-      bottom: '20',
+      bottom: '0',
       containLabel: true
     },
     xAxis: {
       type: 'category',
       data: dates,
-      boundaryGap: true, // K线图需要留边距
+      boundaryGap: activeType.value !== '1', // 分时图不留边距，K线图需要留边距
       axisLabel: {
         fontSize: 10,
         formatter: (value: string) => {
@@ -259,6 +263,20 @@ const renderChart = (klines: string[]) => {
     yAxis: {
       type: 'value',
       scale: true,
+      // 分时图：以昨收价为中心，只显示3条线
+      splitNumber: activeType.value === '1' ? 2 : 5,
+      min: activeType.value === '1' ? (value: any) => {
+        const dataMin = value.min
+        const dataMax = value.max
+        const maxDiff = Math.max(Math.abs(yesterdayClose - dataMin), Math.abs(dataMax - yesterdayClose))
+        return yesterdayClose - maxDiff
+      } : undefined,
+      max: activeType.value === '1' ? (value: any) => {
+        const dataMin = value.min
+        const dataMax = value.max
+        const maxDiff = Math.max(Math.abs(yesterdayClose - dataMin), Math.abs(dataMax - yesterdayClose))
+        return yesterdayClose + maxDiff
+      } : undefined,
       axisLabel: {
         fontSize: 10,
         formatter: (value: number) => {
@@ -275,21 +293,79 @@ const renderChart = (klines: string[]) => {
         show: false
       }
     },
-    series: [
-      {
-        type: 'candlestick',
-        data: klineData,
-        itemStyle: {
-          color: '#ef5350', // 涨（阳线）- 红色
-          color0: '#26a69a', // 跌（阴线）- 绿色
-          borderColor: '#ef5350', // 涨的边框
-          borderColor0: '#26a69a' // 跌的边框
-        },
-        markPoint: {
-          data: markPointData
-        }
-      }
-    ],
+    series: activeType.value === '1' 
+      ? [
+          // 分时图：折线图
+          {
+            type: 'line',
+            data: closePrices,
+            smooth: true,
+            symbol: 'none',
+            lineStyle: {
+              color: '#1890ff',
+              width: 1.5
+            },
+            areaStyle: {
+              color: {
+                type: 'linear',
+                x: 0,
+                y: 0,
+                x2: 0,
+                y2: 1,
+                colorStops: [
+                  {
+                    offset: 0,
+                    color: 'rgba(24, 144, 255, 0.15)'
+                  },
+                  {
+                    offset: 1,
+                    color: 'rgba(24, 144, 255, 0.02)'
+                  }
+                ]
+              }
+            },
+            markLine: {
+              silent: true,
+              symbol: 'none',
+              label: {
+                show: false
+              },
+              lineStyle: {
+                color: '#999',
+                type: 'dashed',
+                width: 1
+              },
+              data: [
+                {
+                  yAxis: yesterdayClose,
+                  label: {
+                    show: true,
+                    position: 'end',
+                    formatter: () => yesterdayClose % 1 === 0 ? yesterdayClose.toString() : yesterdayClose.toFixed(2),
+                    color: '#999',
+                    fontSize: 10
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      : [
+          // 日线/周线/月线：蜡烛图
+          {
+            type: 'candlestick',
+            data: klineData,
+            itemStyle: {
+              color: '#ef5350', // 涨（阳线）- 红色
+              color0: '#26a69a', // 跌（阴线）- 绿色
+              borderColor: '#ef5350', // 涨的边框
+              borderColor0: '#26a69a' // 跌的边框
+            },
+            markPoint: {
+              data: markPointData
+            }
+          }
+        ],
     tooltip: {
       trigger: 'axis',
       axisPointer: {
@@ -298,7 +374,6 @@ const renderChart = (klines: string[]) => {
       formatter: (params: any) => {
         const data = params[0]
         const dateStr = data.axisValue
-        const klineValue = data.value // [开盘, 收盘, 最低, 最高]
         
         // 格式化价格：去掉不必要的小数位
         const formatPrice = (price: number) => {
@@ -322,32 +397,49 @@ const renderChart = (klines: string[]) => {
         }
         
         let tooltipContent = `<strong>${formattedDate}</strong><br/>`
-        tooltipContent += `开盘: ${formatPrice(klineValue[0])}<br/>`
-        tooltipContent += `收盘: ${formatPrice(klineValue[1])}<br/>`
-        tooltipContent += `最低: ${formatPrice(klineValue[2])}<br/>`
-        tooltipContent += `最高: ${formatPrice(klineValue[3])}`
         
-        // 检查是否有操作记录
-        const trackRecord = trackRecords.value.find((record) => {
-          const recordDate = new Date(record.created_at)
-          // 格式化为 YYYY-MM-DD 格式以匹配K线数据
-          const year = recordDate.getFullYear()
-          const month = String(recordDate.getMonth() + 1).padStart(2, '0')
-          const day = String(recordDate.getDate()).padStart(2, '0')
-          const recordDateStr = `${year}-${month}-${day}`
-          return recordDateStr === dateStr
-        })
-        
-        if (trackRecord) {
-          const operationType = trackRecord.track_type === 'increase' ? '加仓' : '减仓'
-          const operationColor = trackRecord.track_type === 'increase' ? '#52c41a' : '#ff4d4f'
-          const amount = (trackRecord.money / 100).toFixed(2)
-          const opPrice = formatPrice(trackRecord.price / 100)
+        // 分时图：显示价格和涨跌
+        if (activeType.value === '1') {
+          const price = data.value
+          const changeAmount = price - yesterdayClose
+          const changePercent = ((changeAmount / yesterdayClose) * 100).toFixed(2)
+          const changeColor = changeAmount >= 0 ? '#ff4d4f' : '#26a69a'
           
-          tooltipContent += `<br/><br/><span style="color: ${operationColor}; font-weight: bold;">【${operationType}】</span>`
-          tooltipContent += `<br/>操作价格: ${opPrice}`
-          tooltipContent += `<br/>操作数量: ${trackRecord.num}股`
-          tooltipContent += `<br/>操作金额: ¥${amount}`
+          tooltipContent += `价格: ${formatPrice(price)}<br/>`
+          tooltipContent += `<span style="color: ${changeColor}">涨跌: ${changeAmount >= 0 ? '+' : ''}${formatPrice(changeAmount)} (${changeAmount >= 0 ? '+' : ''}${changePercent}%)</span>`
+        }
+        // K线图：显示开高低收
+        else {
+          const klineValue = data.value // [开盘, 收盘, 最低, 最高]
+          tooltipContent += `开盘: ${formatPrice(klineValue[0])}<br/>`
+          tooltipContent += `收盘: ${formatPrice(klineValue[1])}<br/>`
+          tooltipContent += `最低: ${formatPrice(klineValue[2])}<br/>`
+          tooltipContent += `最高: ${formatPrice(klineValue[3])}`
+        }
+        
+        // 检查是否有操作记录（仅K线图显示）
+        if (activeType.value !== '1') {
+          const trackRecord = trackRecords.value.find((record) => {
+            const recordDate = new Date(record.created_at)
+            // 格式化为 YYYY-MM-DD 格式以匹配K线数据
+            const year = recordDate.getFullYear()
+            const month = String(recordDate.getMonth() + 1).padStart(2, '0')
+            const day = String(recordDate.getDate()).padStart(2, '0')
+            const recordDateStr = `${year}-${month}-${day}`
+            return recordDateStr === dateStr
+          })
+          
+          if (trackRecord) {
+            const operationType = trackRecord.track_type === 'increase' ? '加仓' : '减仓'
+            const operationColor = trackRecord.track_type === 'increase' ? '#52c41a' : '#ff4d4f'
+            const amount = (trackRecord.money / 100).toFixed(2)
+            const opPrice = formatPrice(trackRecord.price / 100)
+            
+            tooltipContent += `<br/><br/><span style="color: ${operationColor}; font-weight: bold;">【${operationType}】</span>`
+            tooltipContent += `<br/>操作价格: ${opPrice}`
+            tooltipContent += `<br/>操作数量: ${trackRecord.num}股`
+            tooltipContent += `<br/>操作金额: ¥${amount}`
+          }
         }
         
         return tooltipContent
