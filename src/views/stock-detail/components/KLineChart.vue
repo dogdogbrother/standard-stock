@@ -1,13 +1,28 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, nextTick } from 'vue'
 import * as echarts from 'echarts'
+import { supabase } from '@/lib/supabase'
 
 interface Props {
   stockCode: string
   invt: string
 }
 
+interface TrackRecord {
+  id: number
+  stock: string
+  invt: string
+  name: string
+  money: number
+  price: number
+  num: number
+  track_type: 'increase' | 'reduce'
+  created_at: string
+}
+
 const props = defineProps<Props>()
+
+const trackRecords = ref<TrackRecord[]>([])
 
 const chartRef = ref<HTMLDivElement | null>(null)
 const loading = ref(false)
@@ -52,6 +67,28 @@ const calculateBeginDate = (klt: string): string => {
   }
   
   return formatDate(now)
+}
+
+// 获取股票操作记录
+const fetchTrackRecords = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('track')
+      .select('*')
+      .eq('stock', props.stockCode)
+      .eq('invt', props.invt)
+      .order('created_at', { ascending: true })
+    
+    if (error) {
+      console.error('获取操作记录失败:', error)
+      return
+    }
+    
+    trackRecords.value = data || []
+    console.log('获取到的操作记录:', trackRecords.value)
+  } catch (err) {
+    console.error('获取操作记录失败:', err)
+  }
 }
 
 // 获取 K线数据
@@ -119,6 +156,60 @@ const renderChart = (klines: string[]) => {
     dates.push(date)
     prices.push(closePrice)
   })
+  
+  console.log('K线日期范围:', dates.length > 0 ? `${dates[0]} ~ ${dates[dates.length - 1]}` : '无数据')
+  console.log('K线日期示例（前5个）:', dates.slice(0, 5))
+  console.log('K线日期示例（后5个）:', dates.slice(-5))
+  
+  // 处理操作记录标记点（分时不显示标记）
+  const markPointData: any[] = []
+  if (activeType.value !== '1') {
+    trackRecords.value.forEach((record) => {
+      const recordDate = new Date(record.created_at)
+      // 格式化为 YYYY-MM-DD 格式以匹配K线数据
+      const year = recordDate.getFullYear()
+      const month = String(recordDate.getMonth() + 1).padStart(2, '0')
+      const day = String(recordDate.getDate()).padStart(2, '0')
+      const dateStr = `${year}-${month}-${day}`
+      
+      // 查找该日期在K线数据中的位置
+      let dateIndex = dates.indexOf(dateStr)
+      console.log(`记录日期: ${dateStr}, K线索引: ${dateIndex}, 原始时间: ${record.created_at}`)
+      
+      // 如果找不到精确日期，找最接近的下一个交易日
+      if (dateIndex === -1) {
+        dateIndex = dates.findIndex(d => d >= dateStr)
+        if (dateIndex !== -1) {
+          console.log(`未找到精确日期，使用最接近的交易日: ${dates[dateIndex]}`)
+        }
+      }
+      
+      if (dateIndex !== -1) {
+        // 使用操作记录中的价格（单位：分，需要转换为元）
+        const operationPrice = record.price / 100
+        
+        markPointData.push({
+          name: record.track_type === 'increase' ? '加仓' : '减仓',
+          coord: [dateIndex, operationPrice],
+          value: record.track_type === 'increase' ? '买' : '卖',
+          symbol: 'pin',
+          symbolSize: 30,
+          itemStyle: {
+            color: record.track_type === 'increase' ? '#52c41a' : '#ff4d4f'
+          },
+          label: {
+            show: true,
+            formatter: '{c}',
+            color: '#ffffff',
+            fontSize: 10,
+            fontWeight: 'bold'
+          },
+          trackRecord: record // 保存完整记录供tooltip使用
+        })
+      }
+    })
+    console.log('标记点数据:', markPointData)
+  }
   
   // 初始化或更新图表
   if (!chartInstance) {
@@ -200,6 +291,9 @@ const renderChart = (klines: string[]) => {
               }
             ]
           }
+        },
+        markPoint: {
+          data: markPointData
         }
       }
     ],
@@ -210,16 +304,37 @@ const renderChart = (klines: string[]) => {
         const dateStr = data.axisValue
         const price = data.value.toFixed(3)
         
-        // 格式化日期
-        let formattedDate = dateStr
-        if (dateStr.length === 8) {
-          const year = dateStr.substring(0, 4)
-          const month = dateStr.substring(4, 6)
-          const day = dateStr.substring(6, 8)
-          formattedDate = `${year}-${month}-${day}`
+        // 格式化日期（K线数据已经是 YYYY-MM-DD 格式）
+        const formattedDate = dateStr
+        
+        let tooltipContent = `${formattedDate}<br/>价格: ${price}`
+        
+        // 检查是否有操作记录（分时不显示）
+        if (activeType.value !== '1') {
+          const trackRecord = trackRecords.value.find((record) => {
+            const recordDate = new Date(record.created_at)
+            // 格式化为 YYYY-MM-DD 格式以匹配K线数据
+            const year = recordDate.getFullYear()
+            const month = String(recordDate.getMonth() + 1).padStart(2, '0')
+            const day = String(recordDate.getDate()).padStart(2, '0')
+            const recordDateStr = `${year}-${month}-${day}`
+            return recordDateStr === dateStr
+          })
+          
+          if (trackRecord) {
+            const operationType = trackRecord.track_type === 'increase' ? '加仓' : '减仓'
+            const operationColor = trackRecord.track_type === 'increase' ? '#52c41a' : '#ff4d4f'
+            const amount = (trackRecord.money / 100).toFixed(2)
+            const opPrice = (trackRecord.price / 100).toFixed(3)
+            
+            tooltipContent += `<br/><span style="color: ${operationColor}; font-weight: bold;">【${operationType}】</span>`
+            tooltipContent += `<br/>操作价格: ${opPrice}`
+            tooltipContent += `<br/>操作数量: ${trackRecord.num}股`
+            tooltipContent += `<br/>操作金额: ¥${amount}`
+          }
         }
         
-        return `${formattedDate}<br/>价格: ${price}`
+        return tooltipContent
       }
     }
   }
@@ -249,12 +364,14 @@ const handleResize = () => {
 
 onMounted(async () => {
   await nextTick()
+  await fetchTrackRecords()
   await fetchKLineData(activeType.value)
   window.addEventListener('resize', handleResize)
 })
 
 // 监听 props 变化
-watch(() => [props.stockCode, props.invt], () => {
+watch(() => [props.stockCode, props.invt], async () => {
+  await fetchTrackRecords()
   fetchKLineData(activeType.value)
 })
 
