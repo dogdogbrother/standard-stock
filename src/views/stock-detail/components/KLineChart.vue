@@ -151,11 +151,11 @@ const renderChart = (klines: string[]) => {
   klines.forEach((line) => {
     const parts = line.split(',')
     // f51: 日期, f52: 开盘, f53: 收盘, f54: 最高, f55: 最低
-    const date = parts[0]
-    const openPrice = parseFloat(parts[1])
-    const closePrice = parseFloat(parts[2])
-    const highPrice = parseFloat(parts[3])
-    const lowPrice = parseFloat(parts[4])
+    const date = parts[0] || ''
+    const openPrice = parseFloat(parts[1] || '0')
+    const closePrice = parseFloat(parts[2] || '0')
+    const highPrice = parseFloat(parts[3] || '0')
+    const lowPrice = parseFloat(parts[4] || '0')
     
     dates.push(date)
     klineData.push([openPrice, closePrice, lowPrice, highPrice])
@@ -164,7 +164,7 @@ const renderChart = (klines: string[]) => {
   
   // 计算昨收价（用于分时图基准线）
   // 对于分时图，昨收价 = 第一个数据点的开盘价
-  const yesterdayClose = klines.length > 0 ? parseFloat(klines[0].split(',')[1]) : 0
+  const yesterdayClose = klines.length > 0 ? parseFloat(klines[0]?.split(',')[1] || '0') : 0
   
   console.log('K线日期范围:', dates.length > 0 ? `${dates[0]} ~ ${dates[dates.length - 1]}` : '无数据')
   console.log('K线日期示例（前5个）:', dates.slice(0, 5))
@@ -242,7 +242,7 @@ const renderChart = (klines: string[]) => {
         formatter: (value: string) => {
           // 分时图：只显示时间部分（YYYY-MM-DD HH:mm -> HH:mm）
           if (activeType.value === '1' && value.includes(' ')) {
-            return value.split(' ')[1]
+            return value.split(' ')[1] || value
           }
           // 日线/周线/月线：格式化日期显示
           if (value.length === 8) {
