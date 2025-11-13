@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useWatchlistStore, type StockDetail } from '@/stores/watchlist'
 import { usePositionStore } from '@/stores/position'
+import SearchBar from './components/SearchBar.vue'
 
 const router = useRouter()
 const watchlistStore = useWatchlistStore()
@@ -33,10 +34,6 @@ const isTradingTime = (): boolean => {
 
 // 判断是否显示交易数据
 const showTradingData = isTradingTime()
-
-const goToSearch = () => {
-  router.push('/search')
-}
 
 // 下拉刷新
 const onRefresh = async () => {
@@ -77,13 +74,7 @@ onMounted(async () => {
 
 <template>
   <div class="watchlist-page">
-    <van-search
-      class="watchlist-search"
-      readonly
-      placeholder="请输入股票代码 / 名称"
-      shape="round"
-      @click="goToSearch"
-    />
+    <SearchBar />
     
     <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
       <div v-if="watchlistStore.loading" class="loading-state">
@@ -97,56 +88,56 @@ onMounted(async () => {
       </div>
       
       <div v-else-if="watchlistStore.stockList.length > 0" class="stock-container">
-      <div class="stock-header">
-        <div class="header-name">名称/代码</div>
-        <div class="header-price">最新</div>
-        <div class="header-change" @click="toggleSort">
-          <span>涨幅</span>
-          <span class="sort-icon" :class="sortOrder">
-            <van-icon v-if="sortOrder === 'desc'" name="arrow-down" />
-            <van-icon v-else-if="sortOrder === 'asc'" name="arrow-up" />
-            <van-icon v-else name="exchange" />
-          </span>
+        <div class="stock-header">
+          <div class="header-name">名称/代码</div>
+          <div class="header-price">最新</div>
+          <div class="header-change" @click="toggleSort">
+            <span>涨幅</span>
+            <span class="sort-icon" :class="sortOrder">
+              <van-icon v-if="sortOrder === 'desc'" name="arrow-down" />
+              <van-icon v-else-if="sortOrder === 'asc'" name="arrow-up" />
+              <van-icon v-else name="exchange" />
+            </span>
+          </div>
+        </div>
+        
+        <div class="stock-list">
+          <div 
+            v-for="stock in watchlistStore.stockList" 
+            :key="`${stock.invt}${stock.code}`"
+            class="stock-item"
+            @click="goToStockDetail(stock)"
+          >
+            <div class="stock-info">
+              <div class="stock-name">
+                {{ stock.name }}
+                <span v-if="watchlistStore.isInPosition(stock)" class="position-badge">持</span>
+              </div>
+              <div class="stock-code">{{ stock.invt.toUpperCase() }}{{ stock.code }}</div>
+            </div>
+            <div class="stock-price">
+              <div class="price">{{ stock.price }}</div>
+            </div>
+            <div class="stock-change">
+              <div v-if="!showTradingData" class="change neutral">
+                -
+              </div>
+              <div 
+                v-else
+                class="change" 
+                :class="{
+                  'positive': stock.change > 0,
+                  'negative': stock.change < 0,
+                  'neutral': stock.change === 0
+                }"
+              >
+                {{ stock.change > 0 ? '+' : '' }}{{ stock.changePercent.toFixed(2) }}%
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       
-      <div class="stock-list">
-        <div 
-          v-for="stock in watchlistStore.stockList" 
-          :key="`${stock.invt}${stock.code}`"
-          class="stock-item"
-          @click="goToStockDetail(stock)"
-        >
-          <div class="stock-info">
-            <div class="stock-name">
-              {{ stock.name }}
-              <span v-if="watchlistStore.isInPosition(stock)" class="position-badge">持</span>
-            </div>
-            <div class="stock-code">{{ stock.invt.toUpperCase() }}{{ stock.code }}</div>
-          </div>
-          <div class="stock-price">
-            <div class="price">{{ stock.price }}</div>
-          </div>
-          <div class="stock-change">
-            <div v-if="!showTradingData" class="change neutral">
-              -
-            </div>
-            <div 
-              v-else
-              class="change" 
-              :class="{
-                'positive': stock.change > 0,
-                'negative': stock.change < 0,
-                'neutral': stock.change === 0
-              }"
-            >
-              {{ stock.change > 0 ? '+' : '' }}{{ stock.changePercent.toFixed(2) }}%
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    
       <div v-else class="empty-state">
         <van-icon name="star-o" class="icon" />
         <h3>暂无自选股票</h3>
@@ -163,13 +154,6 @@ onMounted(async () => {
   flex-direction: column;
   background-color: #ffffff;
   overflow: hidden;
-}
-
-.watchlist-search {
-  width: 100%;
-  display: block;
-  cursor: pointer;
-  flex-shrink: 0;
 }
 
 :deep(.van-pull-refresh) {
@@ -370,3 +354,4 @@ onMounted(async () => {
   }
 }
 </style>
+

@@ -7,11 +7,11 @@ const WHITE_LIST = ['/', '/login']
 const Home = () => import('../views/Home.vue')
 const Login = () => import('../views/Login.vue')
 const AppLayout = () => import('../views/AppLayout.vue')
-const Watchlist = () => import('../views/Watchlist.vue')
+const Watchlist = () => import('../views/watchlist/index.vue')
 const Buddy = () => import('../views/buddy/index.vue')
 const Profile = () => import('../views/profile/index.vue')
 const Search = () => import('../views/Search.vue')
-const StockDetail = () => import('../views/StockDetail.vue')
+const StockDetail = () => import('../views/stock-detail/index.vue')
 
 const parseCookies = () => {
   if (typeof document === 'undefined') {
