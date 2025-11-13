@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { useWatchlistStore } from '@/stores/watchlist'
 import { usePositionStore } from '@/stores/position'
+import KLineChart from './components/KLineChart.vue'
 
 interface StockInfo {
   code: string
@@ -345,6 +346,13 @@ onMounted(async () => {
           </div>
         </div>
       </div>
+      
+      <!-- K线图 -->
+      <KLineChart 
+        v-if="stockInfo"
+        :stock-code="stockCode"
+        :invt="invt"
+      />
     </div>
 
     <div v-else class="empty">
@@ -497,6 +505,7 @@ onMounted(async () => {
   background-color: #ffffff;
   border-radius: 8px;
   padding: 12px;
+  margin-bottom: 12px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
