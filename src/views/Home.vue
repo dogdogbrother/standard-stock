@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { supabase } from '@/lib/supabase'
 import { usePositionStore } from '@/stores/position'
 import { useMoneyStore } from '@/stores/money'
 import PositionList from '@/components/PositionList.vue'
+import TrackHistoryButton from '@/components/TrackHistoryButton.vue'
 import { showToast } from 'vant'
 
 interface Buddy {
@@ -16,6 +18,7 @@ interface Buddy {
 }
 
 const loading = ref(false)
+const router = useRouter()
 const refreshing = ref(false)
 const positionStore = usePositionStore()
 const moneyStore = useMoneyStore()
@@ -240,6 +243,10 @@ const onRefresh = async () => {
   }
 }
 
+const goToWatchlist = () => {
+  router.push('/app/watchlist')
+}
+
 onMounted(async () => {
   // 等待所有数据加载完成
   await Promise.all([
@@ -255,7 +262,7 @@ onMounted(async () => {
 <template>
   <div class="home-page">
     <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
-      <div class="top-card">
+      <div class="top-card" @click="goToWatchlist">
         <div v-if="loading" class="loading">
           <van-loading size="24px" color="#ffffff" />
         </div>
@@ -339,14 +346,15 @@ onMounted(async () => {
       <!-- 持仓列表 -->
       <div class="position-section">
         <div class="section-header">
-          <h3 class="section-title" @click="toggleSort">
+          <div class="section-title" @click="toggleSort">
             持仓
             <span class="sort-icon" :class="sortOrder">
               <van-icon v-if="sortOrder === 'desc'" name="arrow-down" />
               <van-icon v-else-if="sortOrder === 'asc'" name="arrow-up" />
               <van-icon v-else name="exchange" />
             </span>
-          </h3>
+          </div>
+          <TrackHistoryButton />
         </div>
         
         <div v-if="positionStore.loading" class="loading">
@@ -380,6 +388,7 @@ onMounted(async () => {
   padding: 24px 16px;
   min-height: 180px;
   background-image: linear-gradient(to left top, #f6b9db, #edbee6, #e2c3ee, #d7c9f4, #cdcef7, #c6d4fc, #bfdafe, #bae0ff, #b7e9ff, #b7f1ff, #baf8ff, #c2fffb);
+  cursor: pointer;
 }
 
 .loading {
@@ -579,9 +588,12 @@ onMounted(async () => {
   font-size: 14px;
   color: #9ca3af;
   
-  &.desc,
+  &.desc {
+    color: #ef4444;
+  }
+  
   &.asc {
-    color: #3b82f6;
+    color: #10b981;
   }
 }
 

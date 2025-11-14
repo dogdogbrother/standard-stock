@@ -360,6 +360,7 @@ onMounted(async () => {
         v-if="stockInfo && isLoggedIn"
         :stock-code="stockCode"
         :invt="invt"
+        :current-price="stockInfo.price"
       />
     </div>
 

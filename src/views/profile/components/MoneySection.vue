@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { usePositionStore } from '@/stores/position'
 import { useMoneyStore } from '@/stores/money'
@@ -9,6 +10,7 @@ const editAmount = ref('')
 
 const positionStore = usePositionStore()
 const moneyStore = useMoneyStore()
+const router = useRouter()
 
 // 计算总市值
 const totalMarketValue = computed(() => {
@@ -75,6 +77,10 @@ const refresh = async () => {
   await moneyStore.refreshMoney()
 }
 
+const goHome = () => {
+  router.push('/')
+}
+
 onMounted(async () => {
   // 只在缓存为空时才请求
   if (!moneyStore.moneyData) {
@@ -124,7 +130,7 @@ defineExpose({
             </van-button>
           </div>
         </div>
-        <div class="money-item">
+        <div class="money-item total-market" @click="goHome">
           <span class="label">总市值</span>
           <span class="value">{{ Math.round(totalMarketValue) }}</span>
         </div>
@@ -236,6 +242,15 @@ h3 {
   padding: 12px;
   background-color: #ffffff;
   border-radius: 6px;
+}
+
+.money-item.total-market {
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  
+  &:active {
+    transform: scale(0.98);
+  }
 }
 
 .money-item .label {

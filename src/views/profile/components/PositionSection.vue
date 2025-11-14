@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { showToast } from 'vant'
 import { usePositionStore } from '@/stores/position'
 import PositionList from '@/components/PositionList.vue'
+import TrackHistoryButton from '@/components/TrackHistoryButton.vue'
 import AddPositionDialog from './AddPositionDialog.vue'
 
 const emit = defineEmits<{
@@ -13,6 +14,41 @@ const positionStore = usePositionStore()
 const positionList = computed(() => positionStore.positionList)
 const positionLoading = computed(() => positionStore.loading)
 const showAddDialog = ref(false)
+
+const sortOrder = ref<'default' | 'desc' | 'asc'>('default')
+
+// 计算盈亏金额
+const getProfitAmount = (position: any): number => {
+  if (position.currentPrice === undefined) return 0
+  return (position.currentPrice - position.cost) * position.quantity
+}
+
+// 排序后的持仓列表
+const sortedPositionList = computed(() => {
+  const list = [...positionStore.positionList]
+  
+  if (sortOrder.value === 'desc') {
+    // 降序：盈亏从大到小
+    return list.sort((a, b) => getProfitAmount(b) - getProfitAmount(a))
+  } else if (sortOrder.value === 'asc') {
+    // 升序：盈亏从小到大
+    return list.sort((a, b) => getProfitAmount(a) - getProfitAmount(b))
+  }
+  
+  // 默认顺序
+  return list
+})
+
+// 切换排序
+const toggleSort = () => {
+  if (sortOrder.value === 'default') {
+    sortOrder.value = 'desc' // 第一次点击：降序
+  } else if (sortOrder.value === 'desc') {
+    sortOrder.value = 'asc' // 第二次点击：升序
+  } else {
+    sortOrder.value = 'default' // 第三次点击：恢复默认
+  }
+}
 
 // 获取持股列表
 const fetchPositions = async (force = false) => {
@@ -65,7 +101,17 @@ defineExpose({
 <template>
   <div class="position-section">
     <div class="section-header">
-      <h3>持股信息</h3>
+      <div class="header-left">
+        <h3 @click="toggleSort">
+          持股信息
+          <span class="sort-icon" :class="sortOrder">
+            <van-icon v-if="sortOrder === 'desc'" name="arrow-down" />
+            <van-icon v-else-if="sortOrder === 'asc'" name="arrow-up" />
+            <van-icon v-else name="exchange" />
+          </span>
+        </h3>
+        <TrackHistoryButton />
+      </div>
       <van-button 
         type="primary" 
         size="small"
@@ -87,7 +133,7 @@ defineExpose({
     
     <PositionList 
       v-else 
-      :position-list="positionList"
+      :position-list="sortedPositionList"
       @reduce-success="handleReduceSuccess"
     />
     
@@ -115,11 +161,38 @@ defineExpose({
   margin-bottom: 16px;
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 h3 {
   font-size: 16px;
   font-weight: 600;
   color: #111827;
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.sort-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: #9ca3af;
+  
+  &.desc {
+    color: #ef4444;
+  }
+  
+  &.asc {
+    color: #10b981;
+  }
 }
 
 .loading,

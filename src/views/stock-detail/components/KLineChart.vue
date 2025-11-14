@@ -16,7 +16,7 @@ interface TrackRecord {
   money: number
   price: number
   num: number
-  track_type: 'increase' | 'reduce'
+  track_type: 'increase' | 'reduce' | 'clear'
   created_at: string
 }
 
@@ -170,6 +170,40 @@ const renderChart = (klines: string[]) => {
   console.log('K线日期示例（前5个）:', dates.slice(0, 5))
   console.log('K线日期示例（后5个）:', dates.slice(-5))
   
+  // 判断卖出操作后持仓是否为0（用于判断是否显示为清仓）
+  const isClearPosition = (record: TrackRecord) => {
+    // 只有卖出操作才可能清仓
+    if (record.track_type !== 'reduce') return false
+    
+    // 按时间正序计算累计持仓（从最早到当前操作）
+    const sortedTracks = [...trackRecords.value].sort((a, b) => 
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    )
+    
+    let quantity = 0
+    for (const t of sortedTracks) {
+      if (t.id === record.id) {
+        // 计算到当前操作后的持仓
+        if (t.track_type === 'increase') {
+          quantity += t.num
+        } else if (t.track_type === 'reduce' || t.track_type === 'clear') {
+          quantity -= t.num
+        }
+        break
+      }
+      
+      // 累计之前的操作
+      if (t.track_type === 'increase') {
+        quantity += t.num
+      } else if (t.track_type === 'reduce' || t.track_type === 'clear') {
+        quantity -= t.num
+      }
+    }
+    
+    // 如果卖出后持仓为0，则显示为清仓
+    return quantity === 0
+  }
+  
   // 处理操作记录标记点（分时图不显示）
   const markPointData: any[] = []
   if (activeType.value !== '1') {
@@ -198,14 +232,40 @@ const renderChart = (klines: string[]) => {
         const dayKlineData = klineData[dateIndex]
         const markPrice = dayKlineData ? dayKlineData[1] : record.price / 100 // [开盘, 收盘, 最低, 最高]，使用收盘价
         
+        // 判断是否应该显示为清仓
+        const shouldShowAsClear = isClearPosition(record)
+        const displayType = record.track_type === 'increase' 
+          ? 'increase' 
+          : (record.track_type === 'clear' || shouldShowAsClear) 
+            ? 'clear' 
+            : 'reduce'
+        
+        const getTypeName = (type: string) => {
+          if (type === 'increase') return '加仓'
+          if (type === 'clear') return '清仓'
+          return '减仓'
+        }
+        
+        const getTypeValue = (type: string) => {
+          if (type === 'increase') return '买'
+          if (type === 'clear') return '清'
+          return '卖'
+        }
+        
+        const getTypeColor = (type: string) => {
+          if (type === 'increase') return '#52c41a'
+          if (type === 'clear') return '#ff9800' // 橙色
+          return '#ff4d4f'
+        }
+        
         markPointData.push({
-          name: record.track_type === 'increase' ? '加仓' : '减仓',
+          name: getTypeName(displayType),
           coord: [dateIndex, markPrice],
-          value: record.track_type === 'increase' ? '买' : '卖',
+          value: getTypeValue(displayType),
           symbol: 'pin',
           symbolSize: 30,
           itemStyle: {
-            color: record.track_type === 'increase' ? '#52c41a' : '#ff4d4f'
+            color: getTypeColor(displayType)
           },
           label: {
             show: true,
@@ -436,8 +496,50 @@ const renderChart = (klines: string[]) => {
           })
           
           if (trackRecord) {
-            const operationType = trackRecord.track_type === 'increase' ? '加仓' : '减仓'
-            const operationColor = trackRecord.track_type === 'increase' ? '#52c41a' : '#ff4d4f'
+            // 判断是否应该显示为清仓
+            const shouldShowAsClear = trackRecord.track_type === 'reduce' && (() => {
+              const sortedTracks = [...trackRecords.value].sort((a, b) => 
+                new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+              )
+              let quantity = 0
+              for (const t of sortedTracks) {
+                if (t.id === trackRecord.id) {
+                  if (t.track_type === 'increase') {
+                    quantity += t.num
+                  } else if (t.track_type === 'reduce' || t.track_type === 'clear') {
+                    quantity -= t.num
+                  }
+                  break
+                }
+                if (t.track_type === 'increase') {
+                  quantity += t.num
+                } else if (t.track_type === 'reduce' || t.track_type === 'clear') {
+                  quantity -= t.num
+                }
+              }
+              return quantity === 0
+            })()
+            
+            const displayType = trackRecord.track_type === 'increase' 
+              ? 'increase' 
+              : (trackRecord.track_type === 'clear' || shouldShowAsClear) 
+                ? 'clear' 
+                : 'reduce'
+            
+            const getOperationType = (type: string) => {
+              if (type === 'increase') return '加仓'
+              if (type === 'clear') return '清仓'
+              return '减仓'
+            }
+            
+            const getOperationColor = (type: string) => {
+              if (type === 'increase') return '#52c41a'
+              if (type === 'clear') return '#ff9800'
+              return '#ff4d4f'
+            }
+            
+            const operationType = getOperationType(displayType)
+            const operationColor = getOperationColor(displayType)
             const amount = (trackRecord.money / 100).toFixed(2)
             const opPrice = formatPrice(trackRecord.price / 100)
             
