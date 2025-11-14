@@ -10,13 +10,15 @@ export interface Position {
   cost: number
   quantity: number
   created_at: string
+  updated_at?: string // 更新时间
   currentPrice?: number
   changePercent?: number
   yesterdayPrice?: number // 昨收价
 }
 
 export const usePositionStore = defineStore('position', () => {
-  const positionList = ref<Position[]>([])
+  const positionList = ref<Position[]>([]) // 用于显示的持仓列表（过滤掉quantity=0）
+  const allPositions = ref<Position[]>([]) // 所有持仓（包括quantity=0，用于计算今日收益）
   const loading = ref(false)
 
   // 根据股票代码判断市场（0=深市，1=沪市）
@@ -45,7 +47,7 @@ export const usePositionStore = defineStore('position', () => {
       // 使用 URLSearchParams 正确转义参数
       const params = new URLSearchParams({
         secids: secids,
-        fields: 'f2,f3,f12' // f2=最新价, f3=涨跌幅, f12=代码 (通过f2和f3计算昨收价)
+        fields: 'f2,f3,f12,f18' // f2=最新价, f3=涨跌幅, f12=代码, f18=昨收价
       })
       
       const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
@@ -67,11 +69,7 @@ export const usePositionStore = defineStore('position', () => {
         result.data.diff.forEach((item: any) => {
           const currentPrice = item.f2 / 100 // 最新价除以100
           const changePercent = item.f3 / 100 // 涨跌幅除以100 (例如: 250 -> 2.5%)
-          // 通过最新价和涨跌幅反推昨收价：昨收价 = 最新价 / (1 + 涨跌幅)
-          // changePercent 已经是百分比数值，直接用
-          const yesterdayPrice = changePercent !== 0 
-            ? currentPrice / (1 + changePercent / 100)
-            : currentPrice
+          const yesterdayPrice = item.f18 ? item.f18 / 100 : currentPrice // 直接使用f18昨收价
           
           stockDataMap.set(item.f12, {
             yesterdayPrice: yesterdayPrice,
@@ -102,24 +100,45 @@ export const usePositionStore = defineStore('position', () => {
     try {
       const { data, error: fetchError } = await supabase
         .from('position')
-        .select('id, stock, invt, name, cost, quantity, created_at')
+        .select('id, stock, invt, name, cost, quantity, created_at, updated_at')
         .order('created_at', { ascending: false })
       
       if (fetchError) throw fetchError
       
-      // 将分转换为元显示
-      const positions = (data || []).map((pos: any) => ({
-        id: pos.id,
-        stock: pos.stock,
-        invt: pos.invt,
-        name: pos.name,
-        cost: pos.cost / 100,
-        quantity: pos.quantity,
-        created_at: pos.created_at
-      }))
+      // 获取今天的日期（00:00:00）
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const todayStr = today.toISOString()
       
-      // 获取股票实时数据
-      positionList.value = await fetchStockRealTimeData(positions)
+      // 将分转换为元显示，过滤掉quantity=0且不是今天更新的数据
+      const positionsFromDB = (data || [])
+        .filter((pos: any) => {
+          // 保留 quantity > 0 的
+          if (pos.quantity > 0) return true
+          // 保留 quantity = 0 但 updated_at 是今天的（今天清仓的）
+          if (pos.quantity === 0 && pos.updated_at && pos.updated_at >= todayStr) return true
+          // 其他的过滤掉
+          return false
+        })
+        .map((pos: any) => ({
+          id: pos.id,
+          stock: pos.stock,
+          invt: pos.invt,
+          name: pos.name,
+          cost: pos.cost / 100,
+          quantity: pos.quantity,
+          created_at: pos.created_at,
+          updated_at: pos.updated_at
+        }))
+      
+      // 获取所有股票的实时数据（包括quantity=0但今天更新的，用于计算今日收益）
+      const allPositionsWithPrice = await fetchStockRealTimeData(positionsFromDB)
+      
+      // 存储所有持仓（包括quantity=0但今天更新的）
+      allPositions.value = allPositionsWithPrice
+      
+      // 只保留quantity > 0的持仓用于显示
+      positionList.value = allPositionsWithPrice.filter(pos => pos.quantity > 0)
     } catch (err) {
       console.error('获取持股列表失败:', err)
       throw err
@@ -174,6 +193,7 @@ export const usePositionStore = defineStore('position', () => {
 
   return {
     positionList,
+    allPositions,
     loading,
     fetchPositions,
     updatePosition,

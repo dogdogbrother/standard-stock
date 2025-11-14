@@ -32,7 +32,7 @@ SELECT
   ) AS tracks
 FROM watchlist w
 LEFT JOIN track t ON w.stock = t.stock AND w.invt = t.invt
-GROUP BY w.id, w.stock, w.invt, w.name, w.created_at;
+GROUP BY w.id, w.stock, w.invt, w.created_at;
 
 COMMENT ON VIEW watchlist_with_tracks IS '自选股列表及其关联的操作记录（逻辑关联）';
 

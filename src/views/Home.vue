@@ -17,6 +17,18 @@ interface Buddy {
   created_at: string
 }
 
+interface TrackRecord {
+  id: number
+  stock: string
+  invt: string
+  name: string
+  price: number
+  num: number
+  money: number
+  track_type: 'increase' | 'reduce' | 'clear'
+  created_at: string
+}
+
 const loading = ref(false)
 const router = useRouter()
 const refreshing = ref(false)
@@ -26,6 +38,7 @@ const sortOrder = ref<'default' | 'desc' | 'asc'>('default')
 const buddyList = ref<Buddy[]>([])
 const buddyLoading = ref(false)
 const allDataLoaded = ref(false) // 所有数据加载完成标识
+const todayTracks = ref<TrackRecord[]>([]) // 今天的操作记录
 
 // 判断是否是交易时间（工作日 9:30 之后）
 const isTradingTime = (): boolean => {
@@ -50,6 +63,27 @@ const isTradingTime = (): boolean => {
 
 // 判断是否显示交易数据
 const showTradingData = isTradingTime()
+
+// 获取今天的操作记录
+const fetchTodayTracks = async () => {
+  try {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const todayStr = today.toISOString()
+    
+    const { data, error } = await supabase
+      .from('track')
+      .select('*')
+      .gte('created_at', todayStr)
+      .order('created_at', { ascending: true })
+    
+    if (error) throw error
+    
+    todayTracks.value = data || []
+  } catch (err) {
+    console.error('获取今日操作记录失败:', err)
+  }
+}
 
 // 获取伙伴列表
 const fetchBuddies = async () => {
@@ -137,37 +171,161 @@ const totalMarketValue = computed(() => {
 
 // 计算今日收益
 const todayProfit = computed(() => {
-  return positionStore.positionList.reduce((total, position) => {
-    if (position.currentPrice !== undefined && position.yesterdayPrice !== undefined) {
-      // (最新价 - 昨收价) * 持股数量
-      return total + ((position.currentPrice - position.yesterdayPrice) * position.quantity)
+  let totalProfit = 0
+  
+  // 调试：打印所有持仓（包括quantity=0的）
+  console.log('计算今日收益 - allPositions:', positionStore.allPositions.map(p => ({
+    name: p.name,
+    quantity: p.quantity,
+    currentPrice: p.currentPrice,
+    yesterdayPrice: p.yesterdayPrice
+  })))
+  
+  // 按股票分组今天的操作记录
+  const tracksByStock = new Map<string, TrackRecord[]>()
+  todayTracks.value.forEach(track => {
+    const key = `${track.stock}_${track.invt}`
+    if (!tracksByStock.has(key)) {
+      tracksByStock.set(key, [])
     }
-    return total
-  }, 0)
+    tracksByStock.get(key)!.push(track)
+  })
+  
+  // 遍历所有持仓股票（包括今天清仓的quantity=0的股票）
+  positionStore.allPositions.forEach(position => {
+    if (position.currentPrice === undefined) return
+    
+    const key = `${position.stock}_${position.invt}`
+    const stockTracks = tracksByStock.get(key) || []
+    
+    // 如果今天有操作记录
+    if (stockTracks.length > 0) {
+      // 计算今天的总买入量和总卖出量
+      let todayBuyQty = 0
+      let todaySellQty = 0
+      let todaySellAmount = 0
+      
+      stockTracks.forEach(track => {
+        if (track.track_type === 'increase') {
+          todayBuyQty += track.num
+        } else if (track.track_type === 'reduce' || track.track_type === 'clear') {
+          todaySellQty += track.num
+          todaySellAmount += track.money / 100
+        }
+      })
+      
+      // 计算昨天的持仓数量
+      const yesterdayQty = position.quantity - todayBuyQty + todaySellQty
+      
+      // 情况1: 今天买入新股票（昨天没有持仓）
+      if (yesterdayQty === 0 && todayBuyQty > 0) {
+        // 今天新买的股票：用最新价和买入均价的差额
+        let buyAmount = 0
+        stockTracks.forEach(track => {
+          if (track.track_type === 'increase') {
+            buyAmount += track.money / 100
+          }
+        })
+        const avgBuy = buyAmount / todayBuyQty
+        totalProfit += (position.currentPrice - avgBuy) * position.quantity
+      }
+      // 情况2: 今天加仓了已有股票
+      else if (yesterdayQty > 0 && todayBuyQty > 0) {
+        // 原有持仓部分：用昨收价计算
+        if (position.yesterdayPrice !== undefined) {
+          totalProfit += (position.currentPrice - position.yesterdayPrice) * yesterdayQty
+        }
+        // 新加仓部分：用最新价和买入均价的差额
+        let buyAmount = 0
+        stockTracks.forEach(track => {
+          if (track.track_type === 'increase') {
+            buyAmount += track.money / 100
+          }
+        })
+        const avgBuy = buyAmount / todayBuyQty
+        totalProfit += (position.currentPrice - avgBuy) * todayBuyQty
+      }
+      // 情况3: 今天清仓了（现在quantity=0）
+      else if (position.quantity === 0 && todaySellQty > 0 && position.yesterdayPrice !== undefined) {
+        // 用卖出均价和昨收价的差额 * 数量
+        const avgSellPrice = todaySellAmount / todaySellQty
+        totalProfit += (avgSellPrice - position.yesterdayPrice) * todaySellQty
+      }
+      // 情况4: 今天减仓了但还有持仓
+      else if (todaySellQty > 0 && position.quantity > 0) {
+        if (position.yesterdayPrice !== undefined) {
+          // 卖出部分：用卖出均价和昨收价的差额
+          const avgSellPrice = todaySellAmount / todaySellQty
+          totalProfit += (avgSellPrice - position.yesterdayPrice) * todaySellQty
+          // 剩余持仓部分：用当前价和昨收价的差额
+          totalProfit += (position.currentPrice - position.yesterdayPrice) * position.quantity
+        }
+      }
+      // 其他情况：有操作但不是上述情况，用昨收价计算
+      else if (position.yesterdayPrice !== undefined) {
+        totalProfit += (position.currentPrice - position.yesterdayPrice) * position.quantity
+      }
+    }
+    // 如果今天没有操作记录，使用原来的逻辑
+    else if (position.yesterdayPrice !== undefined) {
+      totalProfit += (position.currentPrice - position.yesterdayPrice) * position.quantity
+    }
+  })
+  
+  return totalProfit
 })
 
 // 计算今日收益率
 const todayProfitRate = computed(() => {
-  // 计算昨收总市值
-  const yesterdayTotalValue = positionStore.positionList.reduce((total, position) => {
-    if (position.yesterdayPrice !== undefined) {
-      return total + (position.yesterdayPrice * position.quantity)
+  // 按股票分组今天的操作记录
+  const tracksByStock = new Map<string, TrackRecord[]>()
+  todayTracks.value.forEach(track => {
+    const key = `${track.stock}_${track.invt}`
+    if (!tracksByStock.has(key)) {
+      tracksByStock.set(key, [])
     }
-    return total
-  }, 0)
+    tracksByStock.get(key)!.push(track)
+  })
   
-  // 计算今日总市值
-  const todayTotalValue = positionStore.positionList.reduce((total, position) => {
-    if (position.currentPrice !== undefined) {
-      return total + (position.currentPrice * position.quantity)
-    }
-    return total
-  }, 0)
+  // 计算昨收总市值（昨天持有的股票数量 × 昨收价）
+  let yesterdayTotalValue = 0
+  
+  positionStore.allPositions.forEach(position => {
+    if (position.yesterdayPrice === undefined) return
+    
+    const key = `${position.stock}_${position.invt}`
+    const stockTracks = tracksByStock.get(key) || []
+    
+    // 计算今天的买入量和卖出量
+    let todayBuyQty = 0
+    let todaySellQty = 0
+    
+    stockTracks.forEach(track => {
+      if (track.track_type === 'increase') {
+        todayBuyQty += track.num
+      } else if (track.track_type === 'reduce' || track.track_type === 'clear') {
+        todaySellQty += track.num
+      }
+    })
+    
+    // 昨天的持仓数量 = 当前数量 - 今天买入 + 今天卖出
+    const yesterdayQty = position.quantity - todayBuyQty + todaySellQty
+    
+    // 昨收总市值
+    yesterdayTotalValue += position.yesterdayPrice * yesterdayQty
+  })
   
   if (yesterdayTotalValue === 0) return 0
   
-  // 收益率 = (今日总市值 - 昨收总市值) / 昨收总市值 * 100
-  return ((todayTotalValue - yesterdayTotalValue) / yesterdayTotalValue) * 100
+  // 调试：打印计算过程
+  console.log('今日收益率计算:', {
+    todayProfit: todayProfit.value,
+    yesterdayTotalValue,
+    rate: (todayProfit.value / yesterdayTotalValue) * 100
+  })
+  
+  // 收益率 = 今日收益 / 昨收总市值 * 100
+  return (todayProfit.value / yesterdayTotalValue) * 100
 })
 
 // 格式化金额显示（整数不显示小数）
@@ -232,7 +390,8 @@ const onRefresh = async () => {
     await Promise.all([
       moneyStore.refreshMoney(),
       positionStore.fetchPositions(),
-      fetchBuddies()
+      fetchBuddies(),
+      fetchTodayTracks()
     ])
     showToast('刷新成功')
   } catch (err) {
@@ -252,7 +411,8 @@ onMounted(async () => {
   await Promise.all([
     fetchMoney(),
     fetchPositions(),
-    fetchBuddies()
+    fetchBuddies(),
+    fetchTodayTracks()
   ])
   // 所有数据加载完成
   allDataLoaded.value = true

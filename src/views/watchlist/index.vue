@@ -10,6 +10,27 @@ const watchlistStore = useWatchlistStore()
 const positionStore = usePositionStore()
 const refreshing = ref(false) // 下拉刷新状态
 const sortOrder = ref<'default' | 'asc' | 'desc'>('default') // default: 默认, asc: 升序, desc: 降序
+const initialLoaded = ref(false) // 是否已完成首次加载
+
+// 格式化操作日期为 MM-DD
+const formatTrackDate = (dateStr: string): string => {
+  const date = new Date(dateStr)
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${month}-${day}`
+}
+
+// 计算最近操作相对于最新价的涨跌幅
+const calculateTrackChange = (stock: StockDetail): number => {
+  if (!stock.lastTrack) return 0
+  
+  const trackPrice = stock.lastTrack.price / 100 // 操作时的价格（单位：元）
+  const currentPrice = typeof stock.price === 'string' ? parseFloat(stock.price) : stock.price
+  
+  if (!trackPrice || !currentPrice) return 0
+  
+  return ((currentPrice - trackPrice) / trackPrice) * 100
+}
 
 // 判断是否是交易时间（工作日 9:30 之后）
 const isTradingTime = (): boolean => {
@@ -69,6 +90,9 @@ onMounted(async () => {
   
   // 加载自选列表
   await watchlistStore.fetchWatchlist()
+  
+  // 标记首次加载完成
+  initialLoaded.value = true
 })
 </script>
 
@@ -77,7 +101,7 @@ onMounted(async () => {
     <SearchBar />
     
     <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
-      <div v-if="watchlistStore.loading" class="loading-state">
+      <div v-if="watchlistStore.loading || !initialLoaded" class="loading-state">
         <van-loading size="24px" />
         <span>加载中...</span>
       </div>
@@ -108,31 +132,48 @@ onMounted(async () => {
             class="stock-item"
             @click="goToStockDetail(stock)"
           >
-            <div class="stock-info">
-              <div class="stock-name">
-                {{ stock.name }}
-                <span v-if="watchlistStore.isInPosition(stock)" class="position-badge">持</span>
+            <div class="stock-main">
+              <div class="stock-info">
+                <div class="stock-name">
+                  {{ stock.name }}
+                  <span v-if="watchlistStore.isInPosition(stock)" class="position-badge">持</span>
+                </div>
+                <div class="stock-code">{{ stock.invt.toUpperCase() }}{{ stock.code }}</div>
               </div>
-              <div class="stock-code">{{ stock.invt.toUpperCase() }}{{ stock.code }}</div>
-            </div>
-            <div class="stock-price">
-              <div class="price">{{ stock.price }}</div>
-            </div>
-            <div class="stock-change">
-              <div v-if="!showTradingData" class="change neutral">
-                -
+              <div class="stock-price">
+                <div class="price">{{ stock.price }}</div>
               </div>
-              <div 
-                v-else
-                class="change" 
+              <div class="stock-change">
+                <div v-if="!showTradingData" class="change neutral">
+                  -
+                </div>
+                <div 
+                  v-else
+                  class="change" 
+                  :class="{
+                    'positive': stock.change > 0,
+                    'negative': stock.change < 0,
+                    'neutral': stock.change === 0
+                  }"
+                >
+                  {{ stock.change > 0 ? '+' : '' }}{{ stock.changePercent.toFixed(2) }}%
+                </div>
+              </div>
+            </div>
+            <div v-if="stock.lastTrack" class="stock-track">
+              操作{{ stock.trackCount }}次 {{ formatTrackDate(stock.lastTrack.created_at) }} {{ (stock.lastTrack.price / 100).toFixed(2) }}{{ 
+                stock.lastTrack.track_type === 'increase' ? '买入' : 
+                stock.lastTrack.track_type === 'clear' ? '清仓' : '卖出' 
+              }}{{ stock.lastTrack.num }}股
+              <span 
+                class="track-change"
                 :class="{
-                  'positive': stock.change > 0,
-                  'negative': stock.change < 0,
-                  'neutral': stock.change === 0
+                  'positive': calculateTrackChange(stock) > 0,
+                  'negative': calculateTrackChange(stock) < 0
                 }"
               >
-                {{ stock.change > 0 ? '+' : '' }}{{ stock.changePercent.toFixed(2) }}%
-              </div>
+                {{ calculateTrackChange(stock) > 0 ? '+' : '' }}{{ calculateTrackChange(stock).toFixed(2) }}%
+              </span>
             </div>
           </div>
         </div>
@@ -275,7 +316,7 @@ onMounted(async () => {
 
 .stock-item {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   padding: 16px;
   border-radius: 8px;
   background-color: #ffffff;
@@ -286,6 +327,11 @@ onMounted(async () => {
   &:active {
     background-color: #f9fafb;
   }
+}
+
+.stock-main {
+  display: flex;
+  align-items: center;
 }
 
 .stock-info {
@@ -317,6 +363,26 @@ onMounted(async () => {
 .stock-code {
   font-size: 12px;
   color: #9ca3af;
+}
+
+.stock-track {
+  padding-top: 10px;
+  font-size: 11px;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.track-change {
+  font-weight: 600;
+  margin-left: 2px;
+  
+  &.positive {
+    color: #ef4444;
+  }
+  
+  &.negative {
+    color: #10b981;
+  }
 }
 
 .stock-price {

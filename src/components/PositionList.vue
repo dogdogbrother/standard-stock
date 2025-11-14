@@ -277,10 +277,10 @@ const confirmReduce = async () => {
     // 更新资金信息（减仓释放资金）
     await updateMoneyInfo(sellPriceNum * reduceNum)
     
-    // 再更新或删除持仓
+    // 再更新持仓（清仓时不删除记录，而是设置为0）
     if (newQuantity === 0) {
-      // 完全清仓，删除记录
-      await positionStore.deletePosition(positionId)
+      // 完全清仓，将 quantity 和 cost 都设置为 0
+      await positionStore.updatePosition(positionId, 0, 0)
       showToast('已清仓')
     } else {
       // 更新持股数量和成本价

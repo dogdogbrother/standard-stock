@@ -362,34 +362,34 @@ const renderChart = (klines: string[]) => {
     series: activeType.value === '1' 
       ? [
           // 分时图：折线图
-          {
-            type: 'line',
+      {
+        type: 'line',
             data: closePrices,
-            smooth: true,
-            symbol: 'none',
-            lineStyle: {
-              color: '#1890ff',
+        smooth: true,
+        symbol: 'none',
+        lineStyle: {
+          color: '#1890ff',
               width: 1.5
-            },
-            areaStyle: {
-              color: {
-                type: 'linear',
-                x: 0,
-                y: 0,
-                x2: 0,
-                y2: 1,
-                colorStops: [
-                  {
-                    offset: 0,
+        },
+        areaStyle: {
+          color: {
+            type: 'linear',
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
+            colorStops: [
+              {
+                offset: 0,
                     color: 'rgba(24, 144, 255, 0.15)'
-                  },
-                  {
-                    offset: 1,
+              },
+              {
+                offset: 1,
                     color: 'rgba(24, 144, 255, 0.02)'
-                  }
-                ]
               }
-            },
+            ]
+          }
+        },
             markLine: {
               silent: true,
               symbol: 'none',
@@ -427,11 +427,11 @@ const renderChart = (klines: string[]) => {
               borderColor: '#ef5350', // 涨的边框
               borderColor0: '#26a69a' // 跌的边框
             },
-            markPoint: {
-              data: markPointData
-            }
-          }
-        ],
+        markPoint: {
+          data: markPointData
+        }
+      }
+    ],
     tooltip: {
       trigger: 'axis',
       axisPointer: {

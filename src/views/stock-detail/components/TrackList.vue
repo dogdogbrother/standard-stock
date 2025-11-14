@@ -95,7 +95,7 @@ const calculateTotalProfit = () => {
   const sortedTracks = [...trackList.value].reverse() // 转为正序
   let runningQuantity = 0
   
-  sortedTracks.forEach((track, sortedIndex) => {
+  sortedTracks.forEach((track) => {
     const amount = track.money / 100 // 转换为元
     
     if (track.track_type === 'increase') {
@@ -157,6 +157,7 @@ const getPrevPrice = (index: number) => {
 // 判断操作后持仓是否为0（用于判断是否显示为清仓）
 const isClearPosition = (index: number) => {
   const track = trackList.value[index]
+  if (!track) return false
   // 只有卖出操作才可能清仓
   if (track.track_type !== 'reduce') return false
   
@@ -168,6 +169,7 @@ const isClearPosition = (index: number) => {
   let quantity = 0
   for (let i = 0; i <= currentIndex; i++) {
     const t = sortedTracks[i]
+    if (!t) continue
     if (t.track_type === 'increase') {
       quantity += t.num
     } else if (t.track_type === 'reduce' || t.track_type === 'clear') {
@@ -182,6 +184,7 @@ const isClearPosition = (index: number) => {
 const lastOperationDiff = computed(() => {
   if (!props.currentPrice || trackList.value.length === 0) return null
   const latestRecord = trackList.value[0]
+  if (!latestRecord) return null
   const latestPrice = latestRecord.price / 100
   if (latestPrice === 0) return null
 

@@ -50,15 +50,18 @@ const computeDisplayTypes = () => {
       stockQuantityMap[stockKey] = 0
     }
     
+    const currentQty = stockQuantityMap[stockKey] || 0
+    
     if (track.track_type === 'increase') {
-      stockQuantityMap[stockKey] += track.num
+      stockQuantityMap[stockKey] = currentQty + track.num
       displayMap[track.id] = 'increase'
     } else if (track.track_type === 'clear') {
-      stockQuantityMap[stockKey] -= track.num
+      stockQuantityMap[stockKey] = currentQty - track.num
       displayMap[track.id] = 'clear'
     } else {
-      stockQuantityMap[stockKey] -= track.num
-      displayMap[track.id] = stockQuantityMap[stockKey] === 0 ? 'clear' : 'reduce'
+      const newQty = currentQty - track.num
+      stockQuantityMap[stockKey] = newQty
+      displayMap[track.id] = newQty === 0 ? 'clear' : 'reduce'
     }
   })
   

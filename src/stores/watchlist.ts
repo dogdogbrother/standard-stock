@@ -10,6 +10,18 @@ export interface WatchlistItem {
   created_at: string
 }
 
+export interface TrackRecord {
+  id: number
+  stock: string
+  invt: string
+  name: string
+  money: number
+  price: number
+  num: number
+  track_type: 'increase' | 'reduce' | 'clear'
+  created_at: string
+}
+
 export interface StockDetail {
   code: string
   name: string
@@ -17,6 +29,8 @@ export interface StockDetail {
   change: number
   changePercent: number
   invt: string
+  lastTrack?: TrackRecord // 最近一次操作
+  trackCount?: number // 操作次数
 }
 
 export const useWatchlistStore = defineStore('watchlist', () => {
@@ -47,9 +61,9 @@ export const useWatchlistStore = defineStore('watchlist', () => {
     }
     
     try {
-      // 1. 从 watchlist 表获取所有自选股票
+      // 1. 从 watchlist_with_tracks 视图获取所有自选股票及其操作记录
       const { data: watchlistData, error: watchlistError } = await supabase
-        .from('watchlist')
+        .from('watchlist_with_tracks')
         .select('*')
         .order('created_at', { ascending: false })
       
@@ -65,7 +79,7 @@ export const useWatchlistStore = defineStore('watchlist', () => {
       
       // 2. 拼接 secids 参数，格式：0.000001,1.600000
       const secids = watchlistData
-        .map((item: WatchlistItem) => `${convertInvtToMarket(item.invt)}.${item.stock}`)
+        .map((item: any) => `${convertInvtToMarket(item.invt)}.${item.stock}`)
         .join(',')
       
       // 3. 请求东方财富接口获取股票详情
@@ -88,15 +102,60 @@ export const useWatchlistStore = defineStore('watchlist', () => {
       const result = await response.json()
       
       if (result.data && result.data.diff) {
-        // 4. 转换数据格式
-        const transformed = result.data.diff.map((item: any) => ({
-          code: item.f12,
-          name: item.f14,
-          price: item.f2 ? (item.f2 / 100).toFixed(3) : '--',
-          change: item.f4 ? item.f4 / 100 : 0,
-          changePercent: item.f3 ? item.f3 / 100 : 0,
-          invt: item.f13 === 0 ? 'sz' : 'sh'
-        }))
+        // 4. 转换数据格式并合并操作记录信息
+        const transformed = result.data.diff.map((item: any) => {
+          // 找到对应的 watchlist 数据（包含 tracks）
+          const watchlistItem = watchlistData.find((w: any) => 
+            w.stock === item.f12 && (item.f13 === 0 ? 'sz' : 'sh') === w.invt
+          )
+          
+          // 解析 tracks 数据（视图返回的是 JSON 字符串）
+          let tracks: TrackRecord[] = []
+          if (watchlistItem && watchlistItem.tracks) {
+            try {
+              tracks = typeof watchlistItem.tracks === 'string' 
+                ? JSON.parse(watchlistItem.tracks) 
+                : watchlistItem.tracks
+            } catch (e) {
+              console.error('解析 tracks 失败:', e)
+            }
+          }
+          
+          // 计算清仓状态：tracks 按 created_at DESC 排序（最新在前）
+          // 需要从后往前遍历来正确计算累计持股数量
+          const tracksWithClear = tracks.map((track, index) => {
+            if (track.track_type === 'reduce') {
+              // 从最早的操作开始累计，直到当前这次操作
+              let cumulativeQty = 0
+              for (let i = tracks.length - 1; i >= index; i--) {
+                const t = tracks[i]
+                if (!t) continue
+                if (t.track_type === 'increase') {
+                  cumulativeQty += t.num
+                } else if (t.track_type === 'reduce') {
+                  cumulativeQty -= t.num
+                }
+              }
+              // 如果减仓后数量为0，则标记为清仓
+              return {
+                ...track,
+                track_type: cumulativeQty === 0 ? 'clear' as const : 'reduce' as const
+              }
+            }
+            return track
+          })
+          
+          return {
+            code: item.f12,
+            name: item.f14,
+            price: item.f2 ? (item.f2 / 100).toFixed(3) : '--',
+            change: item.f4 ? item.f4 / 100 : 0,
+            changePercent: item.f3 ? item.f3 / 100 : 0,
+            invt: item.f13 === 0 ? 'sz' : 'sh',
+            lastTrack: tracksWithClear.length > 0 ? tracksWithClear[0] : undefined,
+            trackCount: tracksWithClear.length
+          }
+        })
         
         // 缓存原始数据
         originalStockList.value = [...transformed]
