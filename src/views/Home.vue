@@ -547,7 +547,7 @@ onMounted(async () => {
   width: 100%;
   padding: 24px 16px;
   min-height: 180px;
-  background-image: linear-gradient(to left top, #f6b9db, #edbee6, #e2c3ee, #d7c9f4, #cdcef7, #c6d4fc, #bfdafe, #bae0ff, #b7e9ff, #b7f1ff, #baf8ff, #c2fffb);
+  background-image: linear-gradient(to bottom, #1989fa, #0291fc, #0098fe, #00a0ff, #00a7ff, #00b0ff, #00b9ff, #00c1fe, #00ccf9, #00d6ea, #00ded5, #00e4ba);
   cursor: pointer;
 }
 
@@ -566,14 +566,14 @@ onMounted(async () => {
 
 .label {
   font-size: 14px;
-  color: #111827;
+  color: #ffffff;
   font-weight: 500;
 }
 
 .amount {
   font-size: 36px;
   font-weight: 700;
-  color: #111827;
+  color: #ffffff;
 }
 
 .asset-detail {
@@ -591,7 +591,7 @@ onMounted(async () => {
 
 .detail-label {
   font-size: 12px;
-  color: #6b7280;
+  color: #ffffff;
 }
 
 .detail-value {
@@ -599,14 +599,14 @@ onMounted(async () => {
   align-items: center;
   font-size: 16px;
   font-weight: 600;
-  color: #111827;
+  color: #ffffff;
   
   &.profit-up {
-    color: #ef4444;
+    color: #ffebee;
   }
   
   &.profit-down {
-    color: #10b981;
+    color: #e8f5e9;
   }
 }
 
