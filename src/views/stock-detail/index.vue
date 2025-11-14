@@ -5,6 +5,7 @@ import { showToast } from 'vant'
 import { useWatchlistStore } from '@/stores/watchlist'
 import { usePositionStore } from '@/stores/position'
 import KLineChart from './components/KLineChart.vue'
+import TrackList from './components/TrackList.vue'
 
 interface StockInfo {
   code: string
@@ -350,6 +351,13 @@ onMounted(async () => {
       <!-- K线图 -->
       <KLineChart 
         v-if="stockInfo"
+        :stock-code="stockCode"
+        :invt="invt"
+      />
+      
+      <!-- 操作记录 -->
+      <TrackList
+        v-if="stockInfo && isLoggedIn"
         :stock-code="stockCode"
         :invt="invt"
       />

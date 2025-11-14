@@ -194,12 +194,13 @@ const renderChart = (klines: string[]) => {
       }
       
       if (dateIndex !== -1) {
-        // 使用操作记录中的价格（单位：分，需要转换为元）
-        const operationPrice = record.price / 100
+        // 使用当天K线的收盘价作为标记点位置
+        const dayKlineData = klineData[dateIndex]
+        const markPrice = dayKlineData ? dayKlineData[1] : record.price / 100 // [开盘, 收盘, 最低, 最高]，使用收盘价
         
         markPointData.push({
           name: record.track_type === 'increase' ? '加仓' : '减仓',
-          coord: [dateIndex, operationPrice],
+          coord: [dateIndex, markPrice],
           value: record.track_type === 'increase' ? '买' : '卖',
           symbol: 'pin',
           symbolSize: 30,
@@ -208,7 +209,6 @@ const renderChart = (klines: string[]) => {
           },
           label: {
             show: true,
-            formatter: '{c}',
             color: '#ffffff',
             fontSize: 10,
             fontWeight: 'bold'
@@ -262,21 +262,27 @@ const renderChart = (klines: string[]) => {
     },
     yAxis: {
       type: 'value',
-      scale: true,
+      scale: activeType.value === '1' ? false : true,
       // 分时图：以昨收价为中心，只显示3条线
       splitNumber: activeType.value === '1' ? 2 : 5,
-      min: activeType.value === '1' ? (value: any) => {
-        const dataMin = value.min
-        const dataMax = value.max
+      interval: activeType.value === '1' ? (() => {
+        const dataMin = Math.min(...closePrices)
+        const dataMax = Math.max(...closePrices)
+        const maxDiff = Math.max(Math.abs(yesterdayClose - dataMin), Math.abs(dataMax - yesterdayClose))
+        return maxDiff
+      })() : undefined,
+      min: activeType.value === '1' ? (() => {
+        const dataMin = Math.min(...closePrices)
+        const dataMax = Math.max(...closePrices)
         const maxDiff = Math.max(Math.abs(yesterdayClose - dataMin), Math.abs(dataMax - yesterdayClose))
         return yesterdayClose - maxDiff
-      } : undefined,
-      max: activeType.value === '1' ? (value: any) => {
-        const dataMin = value.min
-        const dataMax = value.max
+      })() : undefined,
+      max: activeType.value === '1' ? (() => {
+        const dataMin = Math.min(...closePrices)
+        const dataMax = Math.max(...closePrices)
         const maxDiff = Math.max(Math.abs(yesterdayClose - dataMin), Math.abs(dataMax - yesterdayClose))
         return yesterdayClose + maxDiff
-      } : undefined,
+      })() : undefined,
       axisLabel: {
         fontSize: 10,
         formatter: (value: number) => {

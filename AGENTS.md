@@ -12,6 +12,12 @@
 ## 数据库
 用的supabase
 
+### 数据库表关系说明
+- `watchlist`（自选股）和 `track`（操作记录）是逻辑关联，无外键约束
+- 原因：操作记录应永久保留，不受自选股添加/删除影响
+- 关联方式：通过 `stock + invt` 字段进行逻辑关联
+- 查询示例：在股票详情页面可以查看该股票的所有历史操作记录
+
 ### 路由文件规则,`/view/***/index.vue`.
 
 ## 股票数据api
@@ -84,8 +90,6 @@
 
 * 获取股票分线/日线/周线/月线
   - 接口`http://push2his.eastmoney.com/api/qt/stock/kline/get`
-  - Edge Function: `supabase/functions/stock-kline/index.ts`
-  - 前端组件: `src/views/stock-detail/components/KLineChart.vue`
   - 参数
     - secid 股票代码,例如 0.000001
     - fields1 基础字段1,是固定值f1,f2,f3,f4,f5,f6.
@@ -94,8 +98,7 @@
     - fields2  基础字段2,是固定值f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61.含义:f51：日期 f52：开盘价 f53：收盘价 f54：最高价 f55：最低价 f56：成交量 f57：成交额 f58：振幅 f59：下跌百分比 f60：涨跌百分比 f61：涨跌金额 ‌
     - beg 开始时间 例如:20250810
     - end 结束时间 例如:20250818,通常是今日
-  - 开始时间计算:如果klt=1,beg就是今日,klt=101,beg是60日前,klt=102,beg是60周前,klt=103,beg是60月前.
-  - 使用 echarts 绘制折线图展示股票走势
+  开始时间是需要计算的,如果klt=1,beg就是今日,klt=101,beg是60日前,klt=102,beg是60周前,klt=103,beg是60月前.
 
 ## 数据库的表和字段
 
