@@ -15,26 +15,22 @@
 .app-layout {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh; // 动态视口高度，更精确（现代浏览器支持）
 }
 
 .app-content {
   flex: 1;
   overflow-y: auto;
-  // 为底部导航栏预留空间
-  padding-bottom: 50px;
+  overflow-x: hidden;
   // 禁止橡皮筋效果
   overscroll-behavior: none;
 }
 
 .app-tabbar {
+  flex-shrink: 0;
   box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.04);
   // 适配安全区域
   padding-bottom: env(safe-area-inset-bottom);
-}
-
-// 调整 Vant Tabbar 内部项的位置
-:deep(.van-tabbar-item) {
-  padding-bottom: 0;
 }
 </style>

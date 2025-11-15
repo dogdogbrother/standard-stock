@@ -191,11 +191,13 @@ onMounted(async () => {
 
 <style scoped lang="less">
 .watchlist-page {
-  height: 100%;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
   background-color: #ffffff;
   overflow: hidden;
+  // iOS PWA 适配：为顶部状态栏预留空间
+  padding-top: env(safe-area-inset-top);
 }
 
 :deep(.van-pull-refresh) {

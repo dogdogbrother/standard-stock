@@ -46,9 +46,10 @@ const handlePositionChanged = () => {
 <style scoped lang="less">
 .profile-page {
   padding: 16px;
-  padding-bottom: 46px;
   background-color: #ffffff;
   min-height: 100%;
+  // iOS PWA 适配：为顶部状态栏预留空间
+  padding-top: max(16px, calc(16px + env(safe-area-inset-top)));
 }
 </style>
 

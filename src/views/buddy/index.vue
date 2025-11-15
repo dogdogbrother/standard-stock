@@ -111,9 +111,11 @@ onMounted(() => {
 
 <style scoped lang="less">
 .buddy-page {
-  height: 100%;
+  min-height: 100%;
   padding: 16px;
   background-color: #f5f5f5;
+  // iOS PWA 适配：为顶部状态栏预留空间
+  padding-top: max(16px, calc(16px + env(safe-area-inset-top)));
 }
 
 .header {

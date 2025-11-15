@@ -24,8 +24,6 @@ const goToSearch = () => {
   display: block;
   cursor: pointer;
   flex-shrink: 0;
-  // iOS PWA 适配：为顶部状态栏预留空间
-  padding-top: env(safe-area-inset-top);
 }
 </style>
 
