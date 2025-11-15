@@ -32,10 +32,11 @@ const handlePositionChanged = () => {
 <template>
   <div class="profile-page">
     <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
-      <MoneySection ref="moneyRef" />
+      <MoneySection ref="moneyRef" :refreshing="refreshing" />
       
       <PositionSection 
         ref="positionRef" 
+        :refreshing="refreshing"
         @position-changed="handlePositionChanged"
       />
     </van-pull-refresh>

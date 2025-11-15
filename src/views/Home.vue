@@ -86,8 +86,10 @@ const fetchTodayTracks = async () => {
 }
 
 // 获取伙伴列表
-const fetchBuddies = async () => {
-  buddyLoading.value = true
+const fetchBuddies = async (silent = false) => {
+  if (!silent) {
+    buddyLoading.value = true
+  }
   try {
     const { data, error } = await supabase
       .from('buddy')
@@ -100,7 +102,9 @@ const fetchBuddies = async () => {
   } catch (err) {
     console.error('获取伙伴列表失败:', err)
   } finally {
-    buddyLoading.value = false
+    if (!silent) {
+      buddyLoading.value = false
+    }
   }
 }
 
@@ -386,11 +390,11 @@ const toggleSort = () => {
 // 下拉刷新
 const onRefresh = async () => {
   try {
-    // 强制刷新所有数据
+    // 强制刷新所有数据（静默刷新，不显示loading状态）
     await Promise.all([
       moneyStore.refreshMoney(),
-      positionStore.fetchPositions(),
-      fetchBuddies(),
+      positionStore.fetchPositions(true), // 传入true表示静默刷新
+      fetchBuddies(true), // 静默刷新伙伴列表
       fetchTodayTracks()
     ])
     showToast('刷新成功')
@@ -421,49 +425,49 @@ onMounted(async () => {
 
 <template>
   <div class="home-page">
-    <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
-      <div class="top-card" @click="goToWatchlist">
-        <div v-if="loading" class="loading">
-          <van-loading size="24px" color="#ffffff" />
-        </div>
-        <div v-else class="asset-info">
-          <div class="label">总资产</div>
-          <div class="amount">¥{{ totalAssets.toFixed(2) }}</div>
-          
-          <div class="asset-detail">
-            <div class="detail-item">
-              <span class="detail-label">今日收益</span>
-              <span 
-                v-if="!showTradingData"
-                class="detail-value"
-              >
-                -
-              </span>
-              <span 
-                v-else
-                class="detail-value"
-                :class="{
-                  'profit-up': todayProfit > 0,
-                  'profit-down': todayProfit < 0
-                }"
-              >
-                {{ todayProfit > 0 ? '+' : '' }}{{ formatAmount(todayProfit) }}<span class="profit-rate">({{ todayProfitRate > 0 ? '+' : '' }}{{ todayProfitRate.toFixed(2) }}%)</span>
-              </span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">总市值</span>
-              <span class="detail-value">{{ Math.round(totalMarketValue) }}</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">可用资金</span>
-              <span class="detail-value">{{ moneyStore.moneyData ? moneyStore.moneyData.money.toFixed(2) : '0.00' }}</span>
-            </div>
+    <div class="top-card" @click="goToWatchlist">
+      <div v-if="loading" class="loading">
+        <van-loading size="24px" color="#ffffff" />
+      </div>
+      <div v-else class="asset-info">
+        <div class="label">总资产</div>
+        <div class="amount">¥{{ totalAssets.toFixed(2) }}</div>
+        
+        <div class="asset-detail">
+          <div class="detail-item">
+            <span class="detail-label">今日收益</span>
+            <span 
+              v-if="!showTradingData"
+              class="detail-value"
+            >
+              -
+            </span>
+            <span 
+              v-else
+              class="detail-value"
+              :class="{
+                'profit-up': todayProfit > 0,
+                'profit-down': todayProfit < 0
+              }"
+            >
+              {{ todayProfit > 0 ? '+' : '' }}{{ formatAmount(todayProfit) }}<span class="profit-rate">({{ todayProfitRate > 0 ? '+' : '' }}{{ todayProfitRate.toFixed(2) }}%)</span>
+            </span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">总市值</span>
+            <span class="detail-value">{{ Math.round(totalMarketValue) }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">可用资金</span>
+            <span class="detail-value">{{ moneyStore.moneyData ? moneyStore.moneyData.money.toFixed(2) : '0.00' }}</span>
           </div>
         </div>
       </div>
-      
+    </div>
+    
+    <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
       <!-- 伙伴列表 -->
-      <div v-if="!buddyLoading && activeBuddies.length > 0" class="buddy-section">
+      <div v-if="activeBuddies.length > 0 && (!buddyLoading || refreshing)" class="buddy-section">
         <div class="buddy-list">
           <div 
             v-for="buddy in activeBuddies" 
@@ -517,17 +521,17 @@ onMounted(async () => {
           <TrackHistoryButton />
         </div>
         
-        <div v-if="positionStore.loading" class="loading">
+        <div v-if="positionStore.loading && !refreshing" class="loading">
           <van-loading size="24px" />
           <span>加载中...</span>
         </div>
         
-        <div v-else-if="positionStore.positionList.length === 0" class="empty">
+        <div v-else-if="positionStore.positionList.length === 0 && !positionStore.loading" class="empty">
           <p>暂无持仓数据</p>
         </div>
         
         <PositionList 
-          v-else
+          v-else-if="positionStore.positionList.length > 0"
           :position-list="sortedPositionList"
           :show-reduce-button="false"
         />
@@ -612,6 +616,10 @@ onMounted(async () => {
 
 .profit-rate {
   font-size: 14px;
+}
+
+.van-pull-refresh {
+  min-height: calc(100vh - 180px);
 }
 
 .buddy-section {

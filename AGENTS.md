@@ -1,3 +1,5 @@
+请不要修改此文档.
+
 ## 项目简介
 本项目是移动端项目
 
@@ -100,6 +102,35 @@
     - end 结束时间 例如:20250818,通常是今日
   开始时间是需要计算的,如果klt=1,beg就是今日,klt=101,beg是60日前,klt=102,beg是60周前,klt=103,beg是60月前.
 
+* 获取历年股东数量
+  - 接口 `https://www.shidaotec.com/api/company/getHoldNumHis`
+  - 参数 stockCode=000001
+
+* 获取公司信息接口
+  - 接口 `https://www.shidaotec.com/api/company/getCompanyBasic?`
+  - 参数 stockCode=000001
+  返回内容:
+    ```json
+    {
+
+      "industryName": "出版", // 所属行业
+      // 主题概念
+      "thsIndexList": [ 
+        {
+          "indexName": "中字头股票",
+        },
+        {
+          "indexName": "中特估100",
+        }
+      ],
+      "mainBusiness": "出版物进口(54.77%)、图书类(34.97%)、期刊类(8.07%)", // 主营构成
+      "actName": "中国科学院控股有限公司", // 实际控制人
+      "shareHolder": "中国科技出版传媒集团有限公司(74.4%)、电子工业出版社有限公司(3.66%)、人民邮电出版社有限公司(3.6%)", // 公司股东
+      "holderNumber": "43821", // 股东人数
+      "top10HoldersRatio": "82.75", // 十大流通股东占比
+    }
+    ```
+
 ## 数据库的表和字段
 
 - buddy 伙伴表
@@ -125,6 +156,7 @@
   | name    | 股票名称 | text |
   | cost   | 成本 | float4 |
   | quantity  | 持股数量 | int4 |
+  | update
 
 - track 持仓操作表
   每次加仓或减仓都会生成一条数据.

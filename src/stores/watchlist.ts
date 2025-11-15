@@ -175,7 +175,7 @@ export const useWatchlistStore = defineStore('watchlist', () => {
   const refreshWatchlist = async () => {
     await Promise.all([
       fetchWatchlist(true),
-      positionStore.fetchPositions()
+      positionStore.fetchPositions(true) // 静默刷新
     ])
   }
 

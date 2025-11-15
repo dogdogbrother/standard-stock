@@ -6,6 +6,10 @@ import PositionList from '@/components/PositionList.vue'
 import TrackHistoryButton from '@/components/TrackHistoryButton.vue'
 import AddPositionDialog from './AddPositionDialog.vue'
 
+const props = defineProps<{
+  refreshing?: boolean
+}>()
+
 const emit = defineEmits<{
   'position-changed': []
 }>()
@@ -51,13 +55,13 @@ const toggleSort = () => {
 }
 
 // 获取持股列表
-const fetchPositions = async (force = false) => {
+const fetchPositions = async (force = false, silent = false) => {
   try {
     // 如果已有缓存且不是强制刷新，则不重复请求
     if (!force && positionStore.positionList.length > 0) {
       return
     }
-    await positionStore.fetchPositions()
+    await positionStore.fetchPositions(silent)
   } catch (err) {
     showToast('获取持股列表失败')
   }
@@ -85,7 +89,7 @@ const handleReduceSuccess = () => {
 
 // 暴露刷新方法供父组件调用（下拉刷新时使用）
 const refresh = async () => {
-  await fetchPositions(true) // 强制刷新
+  await fetchPositions(true, true) // 强制刷新，静默模式
 }
 
 onMounted(() => {
@@ -122,17 +126,17 @@ defineExpose({
       </van-button>
     </div>
     
-    <div v-if="positionLoading" class="loading">
+    <div v-if="positionLoading && !refreshing" class="loading">
       <van-loading size="24px" />
       <span>加载中...</span>
     </div>
     
-    <div v-else-if="positionList.length === 0" class="empty">
+    <div v-else-if="positionList.length === 0 && !positionLoading" class="empty">
       <p>暂无持股数据</p>
     </div>
     
     <PositionList 
-      v-else 
+      v-else-if="positionList.length > 0"
       :position-list="sortedPositionList"
       @reduce-success="handleReduceSuccess"
     />

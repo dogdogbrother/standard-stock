@@ -95,8 +95,10 @@ export const usePositionStore = defineStore('position', () => {
   }
 
   // 获取持股列表
-  const fetchPositions = async () => {
-    loading.value = true
+  const fetchPositions = async (silent = false) => {
+    if (!silent) {
+      loading.value = true
+    }
     try {
       const { data, error: fetchError } = await supabase
         .from('position')
@@ -162,8 +164,8 @@ export const usePositionStore = defineStore('position', () => {
     
     if (updateError) throw updateError
     
-    // 刷新列表
-    await fetchPositions()
+    // 刷新列表（静默刷新，因为操作按钮已有loading状态）
+    await fetchPositions(true)
   }
 
   // 删除持股（清仓时）
@@ -175,8 +177,8 @@ export const usePositionStore = defineStore('position', () => {
     
     if (deleteError) throw deleteError
     
-    // 刷新列表
-    await fetchPositions()
+    // 刷新列表（静默刷新，因为操作按钮已有loading状态）
+    await fetchPositions(true)
   }
 
   // 从缓存中检查是否在持仓中（同步方法，立即返回）

@@ -5,6 +5,10 @@ import { showToast } from 'vant'
 import { usePositionStore } from '@/stores/position'
 import { useMoneyStore } from '@/stores/money'
 
+const props = defineProps<{
+  refreshing?: boolean
+}>()
+
 const showEditDialog = ref(false)
 const editAmount = ref('')
 
@@ -99,12 +103,12 @@ defineExpose({
       <h3>资金信息</h3>
     </div>
     
-    <div v-if="moneyStore.loading" class="loading">
+    <div v-if="moneyStore.loading && !refreshing" class="loading">
       <van-loading size="24px" />
       <span>加载中...</span>
     </div>
     
-    <div v-else-if="moneyStore.error" class="error">
+    <div v-else-if="moneyStore.error && !refreshing" class="error">
       <van-icon name="warning-o" />
       <p>{{ moneyStore.error }}</p>
     </div>
