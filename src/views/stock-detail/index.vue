@@ -7,6 +7,8 @@ import { usePositionStore } from '@/stores/position'
 import KLineChart from './components/KLineChart.vue'
 import CompanyInfo from './components/CompanyInfo.vue'
 import DividendChart from './components/DividendChart.vue'
+import RevenueChart from './components/RevenueChart.vue'
+import ProfitChart from './components/ProfitChart.vue'
 import TrackList from './components/TrackList.vue'
 
 interface StockInfo {
@@ -373,6 +375,18 @@ onMounted(async () => {
       
       <!-- 历年分红率 -->
       <DividendChart
+        v-if="stockInfo"
+        :stock-code="stockCode"
+      />
+      
+      <!-- 营业总收入及增速 -->
+      <RevenueChart
+        v-if="stockInfo"
+        :stock-code="stockCode"
+      />
+      
+      <!-- 扣非净利润及增速 -->
+      <ProfitChart
         v-if="stockInfo"
         :stock-code="stockCode"
       />
