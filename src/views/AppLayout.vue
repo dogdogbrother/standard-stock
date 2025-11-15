@@ -21,16 +21,16 @@
 .app-content {
   flex: 1;
   overflow-y: auto;
-  // 为底部导航栏预留空间（包括安全区域）
-  padding-bottom: calc(50px + env(safe-area-inset-bottom));
+  // 为底部导航栏预留空间
+  padding-bottom: 50px;
+  // 禁止橡皮筋效果
+  overscroll-behavior: none;
 }
 
 .app-tabbar {
   box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.04);
   // 适配安全区域
   padding-bottom: env(safe-area-inset-bottom);
-  // 增加底部内边距，避免被手势条遮挡
-  height: calc(50px + env(safe-area-inset-bottom));
 }
 
 // 调整 Vant Tabbar 内部项的位置

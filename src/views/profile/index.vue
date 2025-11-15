@@ -48,7 +48,7 @@ const handlePositionChanged = () => {
   padding: 16px;
   padding-bottom: 46px;
   background-color: #ffffff;
-  min-height: 100vh;
+  min-height: 100%;
 }
 </style>
 

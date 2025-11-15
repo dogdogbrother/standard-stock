@@ -111,7 +111,7 @@ onMounted(() => {
 
 <style scoped lang="less">
 .buddy-page {
-  min-height: calc(100vh - 50px);
+  height: 100%;
   padding: 16px;
   background-color: #f5f5f5;
 }

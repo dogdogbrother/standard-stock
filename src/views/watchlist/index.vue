@@ -191,7 +191,7 @@ onMounted(async () => {
 
 <style scoped lang="less">
 .watchlist-page {
-  height: calc(100vh - 50px);
+  height: 100%;
   display: flex;
   flex-direction: column;
   background-color: #ffffff;
