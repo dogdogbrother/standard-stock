@@ -184,7 +184,6 @@ defineExpose({
 
 <style scoped lang="less">
 .money-section {
-  margin-top: 20px;
   padding: 16px;
   background-color: #f9fafb;
   border-radius: 8px;
