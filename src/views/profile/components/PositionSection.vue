@@ -6,7 +6,7 @@ import PositionList from '@/components/PositionList.vue'
 import TrackHistoryButton from '@/components/TrackHistoryButton.vue'
 import AddPositionDialog from './AddPositionDialog.vue'
 
-const props = defineProps<{
+defineProps<{
   refreshing?: boolean
 }>()
 

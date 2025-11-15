@@ -5,7 +5,7 @@ import { showToast } from 'vant'
 import { usePositionStore } from '@/stores/position'
 import { useMoneyStore } from '@/stores/money'
 
-const props = defineProps<{
+defineProps<{
   refreshing?: boolean
 }>()
 
