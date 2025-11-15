@@ -545,11 +545,15 @@ onMounted(async () => {
   min-height: 100vh;
   background-color: #ffffff;
   padding-bottom: 10px;
+  // iOS PWA 适配：让背景色延伸到状态栏下方
+  background: linear-gradient(to bottom, #1989fa 0px, #ffffff 200px);
 }
 
 .top-card {
   width: 100%;
   padding: 24px 16px;
+  // iOS PWA 适配：为顶部状态栏预留空间，让渐变背景延伸到状态栏
+  padding-top: max(24px, calc(24px + env(safe-area-inset-top)));
   min-height: 180px;
   background-image: linear-gradient(to bottom, #1989fa, #0291fc, #0098fe, #00a0ff, #00a7ff, #00b0ff, #00b9ff, #00c1fe, #00ccf9, #00d6ea, #00ded5, #00e4ba);
   cursor: pointer;

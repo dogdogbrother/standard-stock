@@ -245,6 +245,8 @@ const hasKeyword = computed(() => keyword.value.trim().length > 0)
   align-items: center;
   gap: 6px;
   padding: 10px 12px 12px;
+  // iOS PWA 适配：为顶部状态栏预留空间
+  padding-top: max(10px, env(safe-area-inset-top));
   background-color: #ffffff;
 }
 
