@@ -12,7 +12,7 @@
 能用到vant-ui的都使用vant-ui
 
 ## 数据库
-用的supabase
+用的supabase,我没有用的supabase cli,都是web操作.
 
 ### 数据库表关系说明
 - `watchlist`（自选股）和 `track`（操作记录）是逻辑关联，无外键约束
@@ -109,7 +109,7 @@
 * 获取公司信息接口
   - 接口 `https://www.shidaotec.com/api/company/getCompanyBasic?`
   - 参数 stockCode=000001
-  返回内容:
+  - 返回内容:
     ```json
     {
 
@@ -130,6 +130,40 @@
       "top10HoldersRatio": "82.75", // 十大流通股东占比
     }
     ```
+* 获取公司每年指标数据
+  - 接口 `https://www.shidaotec.com/api/company/getKeyIndexOverview`
+  - 参数 stockCode=000001
+  - 返回内容
+  ```json
+  {
+    // 获取股息率
+    "dividendHis": [
+      {
+        "year": "2017",
+        "cashDivr": "1.65", // 分红率 显示为 1.65%
+        "cashDivPr": "37.91", // 支付率 显示 37.91%
+      }
+    ],
+    // 营业总收入及增速
+    "revenueHis": [
+      {
+        "revenue": "20.1", // 全年营业总收入,单位亿
+        "yoy": "11.85", // 同比增长 11.85%
+        "yoyIndustry": "12.49", // 行业平均 12.48%
+        "year": "2017", // 年份
+        // 季度营收列表,最大长度是4,也就是Q1到Q4
+        "quarterList": [
+          {
+            "quarter": "Q1", 
+            "quarterValue": "2.73", // 营业总收入
+            "quarterYoy": "26.49" // 同步增长
+          }
+        ]
+
+      }
+    ]
+  }
+  ```
 
 ## 数据库的表和字段
 
@@ -179,7 +213,13 @@
   | track_type  | 操作类型(increase加仓或reduce减仓) | track_type  |
   | buddyId  | 关联的伙伴Id | int4 |
   
-
+- dividend
+  每次在进入股票详情时,都会请求股票数据接口,把历年分红最近一年(不包含今年)存进去.
+  | 字段    | 含义 | 类型 |
+  | :---:   | :---: | :---: |
+  | stock   | 股票代码 | text |
+  | num   | 股票代码 | 最近一年的分红率的值 |
+  | year   | 年份 | text |
 
 - unit 份额表 这表只有一条数据,total是固定值100000(这个不会被更改),buddy伙伴可以购买份额,held就是被购买走了的份额.
 

@@ -137,6 +137,7 @@ onMounted(async () => {
                 <div class="stock-name">
                   {{ stock.name }}
                   <span v-if="watchlistStore.isInPosition(stock)" class="position-badge">持</span>
+                  <span v-if="stock.dividend" class="dividend-badge">息{{ stock.dividend.num }}%</span>
                 </div>
                 <div class="stock-code">{{ stock.invt.toUpperCase() }}{{ stock.code }}</div>
               </div>
@@ -358,6 +359,18 @@ onMounted(async () => {
   background-color: #3b82f6;
   border-radius: 4px;
   line-height: 1;
+}
+
+.dividend-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #ffffff;
+  background-color: #10b981;
+  border-radius: 4px;
+  line-height: 1;
+  margin-left: 4px;
 }
 
 .stock-code {

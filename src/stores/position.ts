@@ -2,6 +2,11 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { supabase } from '@/lib/supabase'
 
+export interface Dividend {
+  year: string
+  num: number
+}
+
 export interface Position {
   id: number
   stock: string
@@ -14,6 +19,7 @@ export interface Position {
   currentPrice?: number
   changePercent?: number
   yesterdayPrice?: number // 昨收价
+  dividend?: Dividend // 股息率信息
 }
 
 export const usePositionStore = defineStore('position', () => {
@@ -133,14 +139,39 @@ export const usePositionStore = defineStore('position', () => {
           updated_at: pos.updated_at
         }))
       
+      // 获取所有股票的股息率数据
+      const stocks = positionsFromDB.map((pos: Position) => pos.stock)
+      const { data: dividendData, error: dividendError } = await supabase
+        .from('dividend')
+        .select('stock, year, num')
+        .in('stock', stocks)
+      
+      if (dividendError) {
+        console.error('获取股息率失败:', dividendError)
+      }
+      
+      // 创建股息率映射表（stock -> dividend）
+      const dividendMap = new Map<string, Dividend>()
+      if (dividendData) {
+        dividendData.forEach((item: any) => {
+          dividendMap.set(item.stock, { year: item.year, num: item.num })
+        })
+      }
+      
       // 获取所有股票的实时数据（包括quantity=0但今天更新的，用于计算今日收益）
       const allPositionsWithPrice = await fetchStockRealTimeData(positionsFromDB)
       
+      // 添加股息率信息
+      const allPositionsWithDividend = allPositionsWithPrice.map(pos => ({
+        ...pos,
+        dividend: dividendMap.get(pos.stock)
+      }))
+      
       // 存储所有持仓（包括quantity=0但今天更新的）
-      allPositions.value = allPositionsWithPrice
+      allPositions.value = allPositionsWithDividend
       
       // 只保留quantity > 0的持仓用于显示
-      positionList.value = allPositionsWithPrice.filter(pos => pos.quantity > 0)
+      positionList.value = allPositionsWithDividend.filter(pos => pos.quantity > 0)
     } catch (err) {
       console.error('获取持股列表失败:', err)
       throw err

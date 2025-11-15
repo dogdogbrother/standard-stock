@@ -5,6 +5,8 @@ import { showToast } from 'vant'
 import { useWatchlistStore } from '@/stores/watchlist'
 import { usePositionStore } from '@/stores/position'
 import KLineChart from './components/KLineChart.vue'
+import CompanyInfo from './components/CompanyInfo.vue'
+import DividendChart from './components/DividendChart.vue'
 import TrackList from './components/TrackList.vue'
 
 interface StockInfo {
@@ -361,6 +363,18 @@ onMounted(async () => {
         :stock-code="stockCode"
         :invt="invt"
         :current-price="stockInfo.price"
+      />
+      
+      <!-- 公司信息 -->
+      <CompanyInfo
+        v-if="stockInfo"
+        :stock-code="stockCode"
+      />
+      
+      <!-- 历年分红率 -->
+      <DividendChart
+        v-if="stockInfo"
+        :stock-code="stockCode"
       />
     </div>
 

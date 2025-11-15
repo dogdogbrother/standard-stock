@@ -22,6 +22,11 @@ export interface TrackRecord {
   created_at: string
 }
 
+export interface Dividend {
+  year: string
+  num: number
+}
+
 export interface StockDetail {
   code: string
   name: string
@@ -31,6 +36,7 @@ export interface StockDetail {
   invt: string
   lastTrack?: TrackRecord // 最近一次操作
   trackCount?: number // 操作次数
+  dividend?: Dividend // 股息率信息
 }
 
 export const useWatchlistStore = defineStore('watchlist', () => {
@@ -121,6 +127,25 @@ export const useWatchlistStore = defineStore('watchlist', () => {
             }
           }
           
+          // 解析 dividend 数据
+          let dividend: Dividend | undefined
+          if (watchlistItem && watchlistItem.dividend) {
+            try {
+              const dividendData = typeof watchlistItem.dividend === 'string'
+                ? JSON.parse(watchlistItem.dividend)
+                : watchlistItem.dividend
+              // 如果有 year 和 num 字段才认为是有效数据
+              if (dividendData && dividendData.year && dividendData.num !== null) {
+                dividend = {
+                  year: dividendData.year,
+                  num: dividendData.num
+                }
+              }
+            } catch (e) {
+              console.error('解析 dividend 失败:', e)
+            }
+          }
+          
           // 计算清仓状态：tracks 按 created_at DESC 排序（最新在前）
           // 需要从后往前遍历来正确计算累计持股数量
           const tracksWithClear = tracks.map((track, index) => {
@@ -153,7 +178,8 @@ export const useWatchlistStore = defineStore('watchlist', () => {
             changePercent: item.f3 ? item.f3 / 100 : 0,
             invt: item.f13 === 0 ? 'sz' : 'sh',
             lastTrack: tracksWithClear.length > 0 ? tracksWithClear[0] : undefined,
-            trackCount: tracksWithClear.length
+            trackCount: tracksWithClear.length,
+            dividend: dividend
           }
         })
         
