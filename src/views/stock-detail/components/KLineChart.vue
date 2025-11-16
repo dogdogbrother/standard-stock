@@ -627,7 +627,7 @@ defineExpose({
       </div>
     </div>
     
-    <div class="chart-wrapper">
+    <div class="chart-wrapper" @touchstart.stop @touchmove.stop.prevent>
       <div ref="chartRef" class="chart-container"></div>
       
       <div v-if="loading" class="loading-wrapper">
@@ -682,6 +682,7 @@ defineExpose({
   width: 100%;
   height: 250px;
   position: relative;
+  touch-action: pan-x; /* 只允许横向滑动，防止纵向滚动页面 */
 }
 
 .loading-wrapper {

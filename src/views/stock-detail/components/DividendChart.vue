@@ -261,7 +261,7 @@ defineExpose({
       <van-loading size="20px" />
     </div>
     
-    <div v-else-if="dividendData.length > 0" class="chart-wrapper">
+    <div v-else-if="dividendData.length > 0" class="chart-wrapper" @touchstart.stop @touchmove.stop.prevent>
       <div ref="chartRef" class="chart-container"></div>
     </div>
     
@@ -300,6 +300,7 @@ defineExpose({
 .chart-wrapper {
   width: 100%;
   min-height: 220px;
+  touch-action: pan-x; /* 只允许横向滑动，防止纵向滚动页面 */
 }
 
 .chart-container {
