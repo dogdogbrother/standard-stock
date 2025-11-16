@@ -80,14 +80,11 @@ const fetchTrackRecords = async () => {
       .order('created_at', { ascending: true })
     
     if (error) {
-      console.error('获取操作记录失败:', error)
       return
     }
     
     trackRecords.value = data || []
-    console.log('获取到的操作记录:', trackRecords.value)
   } catch (err) {
-    console.error('获取操作记录失败:', err)
   }
 }
 
@@ -133,7 +130,6 @@ const fetchKLineData = async (klt: string) => {
       renderChart(result.data.klines)
     }
   } catch (err) {
-    console.error('获取K线数据失败:', err)
   } finally {
     loading.value = false
   }
@@ -165,10 +161,6 @@ const renderChart = (klines: string[]) => {
   // 计算昨收价（用于分时图基准线）
   // 对于分时图，昨收价 = 第一个数据点的开盘价
   const yesterdayClose = klines.length > 0 ? parseFloat(klines[0]?.split(',')[1] || '0') : 0
-  
-  console.log('K线日期范围:', dates.length > 0 ? `${dates[0]} ~ ${dates[dates.length - 1]}` : '无数据')
-  console.log('K线日期示例（前5个）:', dates.slice(0, 5))
-  console.log('K线日期示例（后5个）:', dates.slice(-5))
   
   // 判断卖出操作后持仓是否为0（用于判断是否显示为清仓）
   const isClearPosition = (record: TrackRecord) => {
@@ -217,14 +209,10 @@ const renderChart = (klines: string[]) => {
       
       // 查找该日期在K线数据中的位置
       let dateIndex = dates.indexOf(dateStr)
-      console.log(`记录日期: ${dateStr}, K线索引: ${dateIndex}, 原始时间: ${record.created_at}`)
       
       // 如果找不到精确日期，找最接近的下一个交易日
       if (dateIndex === -1) {
         dateIndex = dates.findIndex(d => d >= dateStr)
-        if (dateIndex !== -1) {
-          console.log(`未找到精确日期，使用最接近的交易日: ${dates[dateIndex]}`)
-        }
       }
       
       if (dateIndex !== -1) {
@@ -277,7 +265,6 @@ const renderChart = (klines: string[]) => {
         })
       }
     })
-    console.log('标记点数据:', markPointData)
   }
   
   // 初始化或更新图表

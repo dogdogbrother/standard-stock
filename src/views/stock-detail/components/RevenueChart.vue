@@ -41,7 +41,6 @@ const fetchRevenueData = async () => {
       revenueData.value = result.data.revenueHis
     }
   } catch (err) {
-    console.error('获取营业收入数据失败:', err)
   } finally {
     loading.value = false
   }

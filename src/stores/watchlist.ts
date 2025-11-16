@@ -123,7 +123,6 @@ export const useWatchlistStore = defineStore('watchlist', () => {
                 ? JSON.parse(watchlistItem.tracks) 
                 : watchlistItem.tracks
             } catch (e) {
-              console.error('解析 tracks 失败:', e)
             }
           }
           
@@ -142,7 +141,6 @@ export const useWatchlistStore = defineStore('watchlist', () => {
                 }
               }
             } catch (e) {
-              console.error('解析 dividend 失败:', e)
             }
           }
           
@@ -188,7 +186,6 @@ export const useWatchlistStore = defineStore('watchlist', () => {
         stockList.value = transformed
       }
     } catch (err) {
-      console.error('获取自选列表失败:', err)
       error.value = err instanceof Error ? err.message : '加载失败'
     } finally {
       if (!isRefresh) {
@@ -226,7 +223,6 @@ export const useWatchlistStore = defineStore('watchlist', () => {
       await fetchWatchlist(true)
       return true
     } catch (err) {
-      console.error('添加自选失败:', err)
       throw err
     }
   }
@@ -246,7 +242,6 @@ export const useWatchlistStore = defineStore('watchlist', () => {
       await fetchWatchlist(true)
       return true
     } catch (err) {
-      console.error('取消自选失败:', err)
       throw err
     }
   }
@@ -274,7 +269,6 @@ export const useWatchlistStore = defineStore('watchlist', () => {
         watchlistId: data ? data.id : null
       }
     } catch (err) {
-      console.error('检查自选状态失败:', err)
       return {
         isInWatchlist: false,
         watchlistId: null

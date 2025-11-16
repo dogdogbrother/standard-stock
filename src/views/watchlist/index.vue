@@ -314,7 +314,7 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-bottom: 10px; // 列表底部间距
+  margin-bottom: 40px; // 列表底部间距
 }
 
 .stock-item {

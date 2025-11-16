@@ -94,7 +94,6 @@ const uploadAvatar = async (file: File) => {
     showToast('上传成功')
     
   } catch (err) {
-    console.error('上传失败:', err)
     showToast('上传失败，请重试')
     avatarPreview.value = ''
   } finally {
@@ -171,7 +170,6 @@ const addBuddy = async () => {
     
     return true
   } catch (err) {
-    console.error('添加伙伴失败:', err)
     showToast('添加伙伴失败')
     return false
   }

@@ -140,7 +140,6 @@ const fetchStockDetail = async () => {
       }
     }
   } catch (err) {
-    console.error('获取股票详情失败:', err)
     showToast('获取股票详情失败')
   } finally {
     loading.value = false
@@ -161,7 +160,6 @@ const checkWatchlist = async () => {
       isInWatchlist.value = result.isInWatchlist
     }
   } catch (err) {
-    console.error('检查自选列表失败:', err)
   }
 }
 
@@ -179,7 +177,6 @@ const checkPosition = async () => {
       isInPosition.value = positionStore.isInPositionCache(stockCode.value, invt.value)
     }
   } catch (err) {
-    console.error('检查持仓失败:', err)
   }
 }
 
@@ -193,7 +190,6 @@ const addToWatchlist = async () => {
     // store 已经刷新了缓存，直接从缓存读取
     isInWatchlist.value = watchlistStore.isInWatchlistCache(stockCode.value, invt.value as 'sh' | 'sz')
   } catch (err) {
-    console.error('添加自选失败:', err)
     showToast('添加自选失败')
   }
 }
@@ -214,7 +210,6 @@ const removeFromWatchlist = async () => {
     // store 已经刷新了缓存，直接从缓存读取
     isInWatchlist.value = watchlistStore.isInWatchlistCache(stockCode.value, invt.value as 'sh' | 'sz')
   } catch (err) {
-    console.error('取消自选失败:', err)
     showToast('取消自选失败')
   }
 }

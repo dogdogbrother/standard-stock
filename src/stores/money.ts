@@ -55,7 +55,6 @@ export const useMoneyStore = defineStore('money', () => {
         }
       }
     } catch (err) {
-      console.error('获取资金数据失败:', err)
       error.value = err instanceof Error ? err.message : '获取数据失败'
       throw err
     } finally {
@@ -86,7 +85,6 @@ export const useMoneyStore = defineStore('money', () => {
       
       return true
     } catch (err) {
-      console.error('更新资金失败:', err)
       throw err
     }
   }
@@ -170,7 +168,6 @@ export const useMoneyStore = defineStore('money', () => {
       
       return true
     } catch (err) {
-      console.error('更新资金信息失败:', err)
       throw err
     }
   }

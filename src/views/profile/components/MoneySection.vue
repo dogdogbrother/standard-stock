@@ -71,7 +71,6 @@ const confirmEdit = async () => {
     showEditDialog.value = false
     showToast('修正成功')
   } catch (err) {
-    console.error('修正失败:', err)
     showToast('修正失败')
   }
 }

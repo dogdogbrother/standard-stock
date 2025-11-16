@@ -73,7 +73,6 @@ const fetchStocks = async (query: string) => {
     if (currentId !== requestId) {
       return
     }
-    console.error(error)
     errorMessage.value = '搜索失败，请稍后重试'
     results.value = []
   } finally {
@@ -150,8 +149,6 @@ const addToWatchlist = async (item: StockItem, event: Event) => {
       icon: 'success'
     })
   } catch (err: any) {
-    console.error('添加到自选失败:', err)
-    
     // 检查是否是重复添加的错误（23505是 PostgreSQL 的唯一约束错误代码）
     if (err?.code === '23505' || err?.message?.includes('duplicate')) {
       showToast('已在自选中')

@@ -36,7 +36,6 @@ const fetchCompanyInfo = async () => {
     // 接口返回的数据在 data 字段下
     companyInfo.value = result.data
   } catch (err) {
-    console.error('获取公司信息失败:', err)
   } finally {
     loading.value = false
   }

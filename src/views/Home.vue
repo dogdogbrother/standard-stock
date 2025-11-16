@@ -81,7 +81,6 @@ const fetchTodayTracks = async () => {
     
     todayTracks.value = data || []
   } catch (err) {
-    console.error('获取今日操作记录失败:', err)
   }
 }
 
@@ -100,7 +99,6 @@ const fetchBuddies = async (silent = false) => {
     
     buddyList.value = data || []
   } catch (err) {
-    console.error('获取伙伴列表失败:', err)
   } finally {
     if (!silent) {
       buddyLoading.value = false
@@ -176,14 +174,6 @@ const totalMarketValue = computed(() => {
 // 计算今日收益
 const todayProfit = computed(() => {
   let totalProfit = 0
-  
-  // 调试：打印所有持仓（包括quantity=0的）
-  console.log('计算今日收益 - allPositions:', positionStore.allPositions.map(p => ({
-    name: p.name,
-    quantity: p.quantity,
-    currentPrice: p.currentPrice,
-    yesterdayPrice: p.yesterdayPrice
-  })))
   
   // 按股票分组今天的操作记录
   const tracksByStock = new Map<string, TrackRecord[]>()
@@ -321,13 +311,6 @@ const todayProfitRate = computed(() => {
   
   if (yesterdayTotalValue === 0) return 0
   
-  // 调试：打印计算过程
-  console.log('今日收益率计算:', {
-    todayProfit: todayProfit.value,
-    yesterdayTotalValue,
-    rate: (todayProfit.value / yesterdayTotalValue) * 100
-  })
-  
   // 收益率 = 今日收益 / 昨收总市值 * 100
   return (todayProfit.value / yesterdayTotalValue) * 100
 })
@@ -357,7 +340,6 @@ const fetchMoney = async () => {
     }
     await moneyStore.fetchMoney()
   } catch (err) {
-    console.error('获取数据失败:', err)
   } finally {
     loading.value = false
   }
@@ -372,7 +354,6 @@ const fetchPositions = async () => {
     }
     await positionStore.fetchPositions()
   } catch (err) {
-    console.error('获取持股列表失败:', err)
   }
 }
 
@@ -399,7 +380,6 @@ const onRefresh = async () => {
     ])
     showToast('刷新成功')
   } catch (err) {
-    console.error('刷新失败:', err)
     showToast('刷新失败')
   } finally {
     refreshing.value = false
@@ -724,7 +704,7 @@ onMounted(async () => {
 }
 
 .position-section {
-  margin: 16px;
+  margin: 16px 16px 6px 16px;
   padding: 16px;
   background-color: #f9fafb;
   border-radius: 8px;

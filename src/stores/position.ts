@@ -93,7 +93,6 @@ export const usePositionStore = defineStore('position', () => {
         }))
       }
     } catch (err) {
-      console.error('获取股票实时数据失败:', err)
       // 获取实时数据失败不影响持股列表显示
     }
     
@@ -147,7 +146,6 @@ export const usePositionStore = defineStore('position', () => {
         .in('stock', stocks)
       
       if (dividendError) {
-        console.error('获取股息率失败:', dividendError)
       }
       
       // 创建股息率映射表（stock -> dividend）
@@ -173,7 +171,6 @@ export const usePositionStore = defineStore('position', () => {
       // 只保留quantity > 0的持仓用于显示
       positionList.value = allPositionsWithDividend.filter(pos => pos.quantity > 0)
     } catch (err) {
-      console.error('获取持股列表失败:', err)
       throw err
     } finally {
       loading.value = false

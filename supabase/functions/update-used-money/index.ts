@@ -30,8 +30,6 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    console.log('开始更新 usedMoney...')
-
     // 1. 获取所有持仓数据
     const { data: positions, error: fetchError } = await supabase
       .from('position')
@@ -42,21 +40,16 @@ serve(async (req) => {
     }
 
     if (!positions || positions.length === 0) {
-      console.log('没有持仓数据')
       return new Response(
         JSON.stringify({ success: true, usedMoney: 0, message: '没有持仓数据' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    console.log(`获取到 ${positions.length} 条持仓数据`)
-
     // 2. 构建 secids 参数
     const secids = positions
       .map((pos: Position) => `${convertInvtToMarket(pos.invt)}.${pos.stock}`)
       .join(',')
-
-    console.log('secids:', secids)
 
     // 3. 调用东方财富 API 获取股票详情
     const params = new URLSearchParams({
@@ -65,7 +58,6 @@ serve(async (req) => {
     })
 
     const apiUrl = `https://push2.eastmoney.com/api/qt/ulist.np/get?${params.toString()}`
-    console.log('API URL:', apiUrl)
 
     const response = await fetch(apiUrl)
     if (!response.ok) {
@@ -73,7 +65,6 @@ serve(async (req) => {
     }
 
     const apiResult = await response.json()
-    console.log('API 返回数据:', JSON.stringify(apiResult))
 
     if (!apiResult.data?.diff) {
       throw new Error('API 返回数据格式错误')
@@ -86,8 +77,6 @@ serve(async (req) => {
       const currentPrice = item.f2 / 100 // 分转元
       stockPriceMap.set(stockCode, currentPrice)
     })
-
-    console.log('股票价格映射:', Object.fromEntries(stockPriceMap))
 
     // 5. 计算总市值（usedMoney）
     let totalUsedMoney = 0
@@ -104,13 +93,8 @@ serve(async (req) => {
           currentPrice,
           marketValue: marketValue.toFixed(2)
         })
-      } else {
-        console.warn(`未获取到股票 ${pos.stock} 的最新价`)
       }
     })
-
-    console.log('总市值（元）:', totalUsedMoney)
-    console.log('详细信息:', details)
 
     // 6. 转换为分
     const totalUsedMoneyInCents = Math.round(totalUsedMoney * 100)
@@ -120,11 +104,6 @@ serve(async (req) => {
     const beijingTime = new Date(now.getTime() + 8 * 60 * 60 * 1000)
     const todayStart = new Date(beijingTime.getFullYear(), beijingTime.getMonth(), beijingTime.getDate())
     const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000)
-
-    console.log('今天日期范围:', { 
-      start: todayStart.toISOString(), 
-      end: todayEnd.toISOString() 
-    })
 
     // 8. 检查今天是否已有记录
     const { data: todayMoney, error: fetchTodayError } = await supabase
@@ -142,7 +121,6 @@ serve(async (req) => {
     let result
     if (todayMoney && todayMoney.length > 0) {
       // 9a. 今天已有记录，更新 usedMoney
-      console.log('今天已有记录，更新 usedMoney')
       const { error: updateError } = await supabase
         .from('money')
         .update({ usedMoney: totalUsedMoneyInCents })
@@ -155,8 +133,6 @@ serve(async (req) => {
       result = { action: 'updated', id: todayMoney[0].id }
     } else {
       // 9b. 今天没有记录，获取最新记录的 money 值，创建新记录
-      console.log('今天没有记录，创建新记录')
-      
       const { data: latestMoney, error: fetchLatestError } = await supabase
         .from('money')
         .select('money')
@@ -184,8 +160,6 @@ serve(async (req) => {
       result = { action: 'created', id: newMoney.id }
     }
 
-    console.log('usedMoney 操作成功:', result)
-
     return new Response(
       JSON.stringify({
         success: true,
@@ -202,7 +176,6 @@ serve(async (req) => {
       }
     )
   } catch (error) {
-    console.error('错误:', error)
     return new Response(
       JSON.stringify({
         success: false,

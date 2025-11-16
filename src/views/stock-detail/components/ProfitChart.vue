@@ -41,7 +41,6 @@ const fetchProfitData = async () => {
       profitData.value = result.data.profitDedtHis
     }
   } catch (err) {
-    console.error('获取扣非净利润数据失败:', err)
   } finally {
     loading.value = false
   }

@@ -70,13 +70,11 @@ const fetchCurrentQuantity = async () => {
       .single()
     
     if (error && error.code !== 'PGRST116') { // PGRST116 表示没有找到记录
-      console.error('获取持仓数量失败:', error)
       return
     }
     
     currentQuantity.value = data?.quantity || 0
   } catch (err) {
-    console.error('获取持仓数量失败:', err)
   }
 }
 
@@ -131,7 +129,6 @@ const fetchTrackList = async () => {
       .order('created_at', { ascending: false })
     
     if (error) {
-      console.error('获取操作记录失败:', error)
       return
     }
     
@@ -141,7 +138,6 @@ const fetchTrackList = async () => {
     await fetchCurrentQuantity()
     calculateTotalProfit()
   } catch (err) {
-    console.error('获取操作记录失败:', err)
   } finally {
     loading.value = false
   }

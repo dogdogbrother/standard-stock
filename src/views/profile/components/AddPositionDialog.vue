@@ -98,7 +98,6 @@ const searchStock = async (keyword: string) => {
       selectedStockMarket.value = ''
     }
   } catch (err) {
-    console.error('搜索股票失败:', err)
     searchResults.value = []
     showSearchDropdown.value = false
     selectedStockName.value = ''
@@ -139,7 +138,6 @@ const checkDuplicateStock = async (stockCode: string) => {
     
     return false
   } catch (err) {
-    console.error('检查股票失败:', err)
     return false
   }
 }
@@ -197,7 +195,6 @@ const updateMoneyInfo = async (totalAmount: number) => {
     // 录入持股时需要减少可用资金，所以传入负值
     await moneyStore.updateMoneyByAmount(-totalAmount)
   } catch (err) {
-    console.error('更新资金信息失败:', err)
     throw err
   }
 }
@@ -246,7 +243,6 @@ const addPosition = async () => {
     emit('success')
     return true
   } catch (err) {
-    console.error('录入失败:', err)
     showToast('录入失败')
     return false
   }
@@ -268,11 +264,9 @@ const insertTrackRecord = async (trackData: {
       .insert([trackData])
     
     if (trackError) {
-      console.error('插入 track 记录失败:', trackError)
       throw trackError
     }
   } catch (err) {
-    console.error('记录操作失败:', err)
     throw err
   }
 }
@@ -295,13 +289,9 @@ const addToWatchlistIfNotExists = async (stockCode: string, stockMarket: string)
         }])
       
       if (insertError) {
-        console.error('添加到自选失败:', insertError)
-      } else {
-        console.log('已自动添加到自选列表')
       }
     }
   } catch (err) {
-    console.error('检查自选列表失败:', err)
   }
 }
 
@@ -368,7 +358,6 @@ watch(visible, async (newVal, oldVal) => {
       emit('success')
     } catch (err) {
       if (err !== 'cancel') {
-        console.error('更新失败:', err)
         showToast('更新失败')
       }
     } finally {

@@ -29,7 +29,6 @@ const fetchBuddies = async () => {
     
     buddyList.value = data || []
   } catch (err) {
-    console.error('获取伙伴列表失败:', err)
     showToast('获取伙伴列表失败')
   } finally {
     loading.value = false

@@ -114,11 +114,9 @@ const insertTrackRecord = async (trackData: {
       .insert([trackData])
     
     if (trackError) {
-      console.error('插入 track 记录失败:', trackError)
       throw trackError
     }
   } catch (err) {
-    console.error('记录操作失败:', err)
     throw err
   }
 }
@@ -184,7 +182,6 @@ const updateMoneyInfo = async (totalAmount: number) => {
       if (insertError) throw insertError
     }
   } catch (err) {
-    console.error('更新资金信息失败:', err)
     throw err
   }
 }
@@ -291,7 +288,6 @@ const confirmReduce = async () => {
     showReduceDialog.value = false
     emit('reduce-success')
   } catch (err) {
-    console.error('减仓失败:', err)
     showToast('减仓失败')
   }
 }

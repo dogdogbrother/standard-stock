@@ -17,7 +17,6 @@ const onRefresh = async () => {
       positionRef.value?.refresh()
     ])
   } catch (err) {
-    console.error('刷新失败:', err)
   } finally {
     refreshing.value = false
   }

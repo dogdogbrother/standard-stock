@@ -77,14 +77,12 @@ const fetchTrackList = async () => {
       .order('created_at', { ascending: false })
     
     if (error) {
-      console.error('获取历史操作记录失败:', error)
       return
     }
     
     trackList.value = data || []
     computeDisplayTypes()
   } catch (err) {
-    console.error('获取历史操作记录失败:', err)
   } finally {
     loading.value = false
   }
