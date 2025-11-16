@@ -183,6 +183,19 @@
   }
   ```
 
+* 获取历年股东人数
+  - 接口 `https://www.shidaotec.com/api/company/getHoldNumHis`
+  - 参数 stockCode=000001
+  - 返回内容:
+    ```json
+    [
+      {
+        "countYear": "2013",
+        "holdNums": "24374"
+      }
+    ]
+    ```
+
 ## 数据库的表和字段
 
 - buddy 伙伴表
