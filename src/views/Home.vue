@@ -7,6 +7,7 @@ import { useMoneyStore } from '@/stores/money'
 import PositionList from '@/components/PositionList.vue'
 import TrackHistoryButton from '@/components/TrackHistoryButton.vue'
 import { showToast } from 'vant'
+import { formatNumber } from '@/utils/format'
 
 interface Buddy {
   id: number
@@ -320,7 +321,7 @@ const formatAmount = (amount: number): string => {
   if (Number.isInteger(amount)) {
     return amount.toString()
   }
-  return amount.toFixed(2)
+  return formatNumber(amount, 2).toString()
 }
 
 // 计算总资产（可用资金 + 总市值）
@@ -411,7 +412,7 @@ onMounted(async () => {
       </div>
       <div v-else class="asset-info">
         <div class="label">总资产</div>
-        <div class="amount">¥{{ totalAssets.toFixed(2) }}</div>
+        <div class="amount">¥{{ formatNumber(totalAssets, 2) }}</div>
         
         <div class="asset-detail">
           <div class="detail-item">
@@ -430,7 +431,7 @@ onMounted(async () => {
                 'profit-down': todayProfit < 0
               }"
             >
-              {{ todayProfit > 0 ? '+' : '' }}{{ formatAmount(todayProfit) }}<span class="profit-rate">({{ todayProfitRate > 0 ? '+' : '' }}{{ todayProfitRate.toFixed(2) }}%)</span>
+              {{ todayProfit > 0 ? '+' : '' }}{{ formatAmount(todayProfit) }}<span class="profit-rate">({{ todayProfitRate > 0 ? '+' : '' }}{{ formatNumber(todayProfitRate, 2) }}%)</span>
             </span>
           </div>
           <div class="detail-item">
@@ -439,7 +440,7 @@ onMounted(async () => {
           </div>
           <div class="detail-item">
             <span class="detail-label">可用资金</span>
-            <span class="detail-value">{{ moneyStore.moneyData ? moneyStore.moneyData.money.toFixed(2) : '0.00' }}</span>
+            <span class="detail-value">{{ moneyStore.moneyData ? formatNumber(moneyStore.moneyData.money, 2) : '0.00' }}</span>
           </div>
         </div>
       </div>
@@ -462,7 +463,7 @@ onMounted(async () => {
               <div class="buddy-name">{{ buddy.name }}</div>
               <div class="buddy-asset-row">
                 <div class="buddy-asset">
-                  持有金额：<span v-if="allDataLoaded">¥{{ getBuddyAsset(buddy).toFixed(2) }}</span><span v-else class="loading-text">计算中...</span>
+                  持有金额：<span v-if="allDataLoaded">¥{{ formatNumber(getBuddyAsset(buddy), 2) }}</span><span v-else class="loading-text">计算中...</span>
                 </div>
                 <!-- 只有所有数据加载完成才显示收益 -->
                 <div v-if="!allDataLoaded" class="buddy-profit loading-text">

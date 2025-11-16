@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { supabase } from '@/lib/supabase'
+import { formatNumber } from '@/utils/format'
 
 interface TrackRecord {
   id: number
@@ -30,13 +31,13 @@ const formatDateTime = (dateStr: string) => {
 const formatPrice = (price: number) => {
   const value = price / 100
   if (value % 1 === 0) return value.toString()
-  return value.toFixed(3).replace(/\.?0+$/, '')
+  return formatNumber(value, 3).toString()
 }
 
 const formatMoney = (money: number) => {
   const value = money / 100
   if (value % 1 === 0) return value.toString()
-  return value.toFixed(2).replace(/\.?0+$/, '')
+  return formatNumber(value, 2).toString()
 }
 
 const computeDisplayTypes = () => {

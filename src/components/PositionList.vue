@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { usePositionStore, type Position } from '@/stores/position'
 import { supabase } from '@/lib/supabase'
+import { formatNumber } from '@/utils/format'
 
 interface Props {
   positionList: Position[]
@@ -311,7 +312,7 @@ const confirmReduce = async () => {
             v-if="position.currentPrice !== undefined" 
             class="current-price"
           >
-            {{ position.currentPrice.toFixed(3) }}
+            {{ formatNumber(position.currentPrice, 3) }}
           </span>
           <span v-else class="current-price loading-text">--</span>
           
@@ -329,18 +330,18 @@ const confirmReduce = async () => {
               'price-down': position.changePercent < 0
             }"
           >
-            {{ position.changePercent > 0 ? '+' : '' }}{{ position.changePercent.toFixed(2) }}%
+            {{ position.changePercent > 0 ? '+' : '' }}{{ formatNumber(position.changePercent, 2) }}%
           </span>
           <span v-else class="change-percent loading-text">--</span>
         </div>
       </div>
       <div class="position-details">
         <span v-if="position.currentPrice !== undefined" class="market-value">
-          ¥{{ getMarketValue(position).toFixed(2) }}
+          ¥{{ formatNumber(getMarketValue(position), 2) }}
         </span>
         <span class="detail-item">
           <span class="label">成本:</span>
-          <span class="value">{{ position.cost.toFixed(3) }}</span>
+          <span class="value">{{ formatNumber(position.cost, 3) }}</span>
         </span>
         <span class="detail-item">
           <span class="label">持股:</span>
@@ -359,8 +360,8 @@ const confirmReduce = async () => {
               'price-down': getProfitAmount(position) < 0
             }"
           >
-            ¥{{ getProfitAmount(position).toFixed(2) }}
-            ({{ getProfitPercent(position) > 0 ? '+' : '' }}{{ getProfitPercent(position).toFixed(2) }}%)
+            ¥{{ formatNumber(getProfitAmount(position), 2) }}
+            ({{ getProfitPercent(position) > 0 ? '+' : '' }}{{ formatNumber(getProfitPercent(position), 2) }}%)
           </span>
         </div>
         <van-button 
@@ -416,7 +417,7 @@ const confirmReduce = async () => {
         <div v-if="reduceForm.reduceQuantity && parseFloat(reduceForm.reduceQuantity) > 0 && parseFloat(reduceForm.reduceQuantity) < reduceForm.currentQuantity" class="new-cost-info">
           <div class="cost-row">
             <span class="label">原成本价：</span>
-            <span class="value">{{ reduceForm.currentCost.toFixed(3) }} 元</span>
+            <span class="value">{{ formatNumber(reduceForm.currentCost, 3) }} 元</span>
           </div>
           <div class="cost-row">
             <span class="label">新成本价：</span>
@@ -427,7 +428,7 @@ const confirmReduce = async () => {
                 'cost-up': reduceForm.newCost > reduceForm.currentCost
               }"
             >
-              {{ reduceForm.newCost.toFixed(3) }} 元
+              {{ formatNumber(reduceForm.newCost, 3) }} 元
             </span>
           </div>
         </div>

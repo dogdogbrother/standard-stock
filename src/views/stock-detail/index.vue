@@ -10,6 +10,7 @@ import DividendChart from './components/DividendChart.vue'
 import RevenueChart from './components/RevenueChart.vue'
 import ProfitChart from './components/ProfitChart.vue'
 import TrackList from './components/TrackList.vue'
+import { formatNumber } from '@/utils/format'
 
 interface StockInfo {
   code: string
@@ -33,7 +34,7 @@ const positionStore = usePositionStore()
 const invt = ref(route.params.invt as string)
 const stockCode = ref(route.params.stock as string)
 
-const loading = ref(false)
+const loading = ref(true)
 const stockInfo = ref<StockInfo | null>(null)
 const isInWatchlist = ref(false)
 const isInPosition = ref(false)
@@ -302,12 +303,12 @@ onMounted(async () => {
               'price-down': stockInfo.change < 0
             }"
           >
-            <div class="current-price">{{ stockInfo.price.toFixed(3) }}</div>
+            <div class="current-price">{{ formatNumber(stockInfo.price, 3) }}</div>
             <div v-if="!showTradingData" class="price-change">
               -
             </div>
             <div v-else class="price-change">
-              {{ stockInfo.change > 0 ? '+' : '' }}{{ stockInfo.change.toFixed(2) }} ({{ stockInfo.changePercent > 0 ? '+' : '' }}{{ stockInfo.changePercent.toFixed(2) }}%)
+              {{ stockInfo.change > 0 ? '+' : '' }}{{ formatNumber(stockInfo.change, 2) }} ({{ stockInfo.changePercent > 0 ? '+' : '' }}{{ formatNumber(stockInfo.changePercent, 2) }}%)
             </div>
           </div>
         </div>
@@ -318,31 +319,31 @@ onMounted(async () => {
         <div class="detail-row">
           <div class="detail-item">
             <span class="label">昨收</span>
-            <span class="value">{{ stockInfo.yesterdayPrice.toFixed(3) }}</span>
+            <span class="value">{{ formatNumber(stockInfo.yesterdayPrice, 3) }}</span>
           </div>
           <div class="detail-item">
             <span class="label">今开</span>
-            <span class="value">{{ stockInfo.open.toFixed(3) }}</span>
+            <span class="value">{{ formatNumber(stockInfo.open, 3) }}</span>
           </div>
         </div>
         <div class="detail-row">
           <div class="detail-item">
             <span class="label">最高</span>
-            <span class="value price-up">{{ stockInfo.high.toFixed(3) }}</span>
+            <span class="value price-up">{{ formatNumber(stockInfo.high, 3) }}</span>
           </div>
           <div class="detail-item">
             <span class="label">最低</span>
-            <span class="value price-down">{{ stockInfo.low.toFixed(3) }}</span>
+            <span class="value price-down">{{ formatNumber(stockInfo.low, 3) }}</span>
           </div>
         </div>
         <div class="detail-row">
           <div class="detail-item">
             <span class="label">成交量</span>
-            <span class="value">{{ stockInfo.volume.toFixed(0) }}手</span>
+            <span class="value">{{ Math.round(stockInfo.volume) }}手</span>
           </div>
           <div class="detail-item">
             <span class="label">成交额</span>
-            <span class="value">{{ stockInfo.turnover.toFixed(2) }}万</span>
+            <span class="value">{{ formatNumber(stockInfo.turnover, 2) }}万</span>
           </div>
         </div>
       </div>

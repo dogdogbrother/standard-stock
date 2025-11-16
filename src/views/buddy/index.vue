@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { showToast } from 'vant'
 import AddBuddyDialog from './AddBuddyDialog.vue'
+import { formatNumber } from '@/utils/format'
 
 interface Buddy {
   id: number
@@ -44,7 +45,7 @@ const openAddDialog = () => {
 const formatUnit = (unit: number | undefined): string => {
   if (!unit) return '0'
   // 保留4位小数后，去掉尾部的0
-  return parseFloat(unit.toFixed(4)).toString()
+  return formatNumber(unit, 4).toString()
 }
 
 // 添加成功后的回调

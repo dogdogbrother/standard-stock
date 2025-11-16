@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useWatchlistStore, type StockDetail } from '@/stores/watchlist'
 import { usePositionStore } from '@/stores/position'
 import SearchBar from './components/SearchBar.vue'
+import { formatNumber } from '@/utils/format'
 
 const router = useRouter()
 const watchlistStore = useWatchlistStore()
@@ -157,12 +158,12 @@ onMounted(async () => {
                     'neutral': stock.change === 0
                   }"
                 >
-                  {{ stock.change > 0 ? '+' : '' }}{{ stock.changePercent.toFixed(2) }}%
+                  {{ stock.change > 0 ? '+' : '' }}{{ formatNumber(stock.changePercent, 2) }}%
                 </div>
               </div>
             </div>
             <div v-if="stock.lastTrack" class="stock-track">
-              操作{{ stock.trackCount }}次 {{ formatTrackDate(stock.lastTrack.created_at) }} {{ (stock.lastTrack.price / 100).toFixed(2) }}{{ 
+              操作{{ stock.trackCount }}次 {{ formatTrackDate(stock.lastTrack.created_at) }} {{ formatNumber(stock.lastTrack.price / 100, 2) }}{{ 
                 stock.lastTrack.track_type === 'increase' ? '买入' : 
                 stock.lastTrack.track_type === 'clear' ? '清仓' : '卖出' 
               }}{{ stock.lastTrack.num }}股
@@ -173,7 +174,7 @@ onMounted(async () => {
                   'negative': calculateTrackChange(stock) < 0
                 }"
               >
-                {{ calculateTrackChange(stock) > 0 ? '+' : '' }}{{ calculateTrackChange(stock).toFixed(2) }}%
+                {{ calculateTrackChange(stock) > 0 ? '+' : '' }}{{ formatNumber(calculateTrackChange(stock), 2) }}%
               </span>
             </div>
           </div>

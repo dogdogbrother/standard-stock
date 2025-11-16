@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { usePositionStore } from '@/stores/position'
 import { useMoneyStore } from '@/stores/money'
+import { formatNumber } from '@/utils/format'
 
 defineProps<{
   refreshing?: boolean
@@ -42,14 +43,14 @@ const openEditDialog = () => {
 // 增加金额
 const increaseAmount = () => {
   const current = parseFloat(editAmount.value) || 0
-  editAmount.value = (current + 0.01).toFixed(2)
+  editAmount.value = formatNumber(current + 0.01, 2).toString()
 }
 
 // 减少金额
 const decreaseAmount = () => {
   const current = parseFloat(editAmount.value) || 0
   const newAmount = Math.max(0, current - 0.01) // 不能小于 0
-  editAmount.value = newAmount.toFixed(2)
+  editAmount.value = formatNumber(newAmount, 2).toString()
 }
 
 // 确认修改
@@ -115,7 +116,7 @@ defineExpose({
     <div v-else-if="moneyStore.moneyData" class="money-info">
       <!-- 总资产 -->
       <div class="total-assets">
-        {{ totalAssets.toFixed(2) }}
+        {{ formatNumber(totalAssets, 2) }}
       </div>
       
       <!-- 可用资金和总市值 -->
@@ -123,7 +124,7 @@ defineExpose({
         <div class="money-item">
           <span class="label">可用资金</span>
           <div class="value-with-button">
-            <span class="value">{{ moneyStore.moneyData.money.toFixed(2) }}</span>
+            <span class="value">{{ formatNumber(moneyStore.moneyData.money, 2) }}</span>
             <van-button 
               type="primary" 
               size="mini"

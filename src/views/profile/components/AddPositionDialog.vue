@@ -3,6 +3,7 @@ import { ref, watch, nextTick } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { showToast, showConfirmDialog } from 'vant'
 import { useMoneyStore } from '@/stores/money'
+import { formatNumber } from '@/utils/format'
 
 const visible = defineModel<boolean>('visible', { default: false })
 const emit = defineEmits<{
@@ -320,7 +321,7 @@ watch(visible, async (newVal, oldVal) => {
     try {
       await showConfirmDialog({
         title: '股票已存在',
-        message: `成本价格已变动 (${avgCost.toFixed(3)}元)`,
+        message: `成本价格已变动 (${formatNumber(avgCost, 3)}元)`,
         confirmButtonText: '确认',
         cancelButtonText: '取消'
       })

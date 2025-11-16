@@ -2,6 +2,7 @@
 import { ref, onMounted, nextTick } from 'vue'
 import * as echarts from 'echarts'
 import type { EChartsOption } from 'echarts'
+import { formatNumber } from '@/utils/format'
 
 interface ThemeIndex {
   indexName: string
@@ -127,7 +128,7 @@ const renderChart = () => {
         color: '#666',
         formatter: (value: number) => {
           if (value >= 10000) {
-            return (value / 10000).toFixed(1) + '万'
+            return formatNumber(value / 10000, 1) + '万'
           }
           return value.toString()
         }
@@ -156,7 +157,7 @@ const renderChart = () => {
         const value = data.value
         let displayValue = value.toString()
         if (value >= 10000) {
-          displayValue = (value / 10000).toFixed(1) + '万'
+          displayValue = formatNumber(value / 10000, 1) + '万'
         }
         return `${data.axisValue}<br/>${data.marker} 股东人数: ${displayValue}`
       }

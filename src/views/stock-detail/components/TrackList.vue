@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, computed } from 'vue'
 import { supabase } from '@/lib/supabase'
+import { formatNumber } from '@/utils/format'
 
 interface Props {
   stockCode: string
@@ -40,15 +41,14 @@ const formatDate = (dateStr: string) => {
 const formatMoney = (money: number) => {
   const value = money / 100
   if (value % 1 === 0) return value.toString()
-  return value.toFixed(2)
+  return formatNumber(value, 2).toString()
 }
 
 // 格式化价格（分转元）
 const formatPrice = (price: number) => {
   const value = price / 100
   if (value % 1 === 0) return value.toString()
-  const fixed = value.toFixed(3)
-  return fixed.replace(/\.?0+$/, '')
+  return formatNumber(value, 3).toString()
 }
 
 // 计算价格差额（价格差 * 数量，不显示正负号）
@@ -56,7 +56,7 @@ const calculatePriceDiff = (currentPrice: number, prevPrice: number | null, num:
   if (prevPrice === null) return null
   const diff = Math.abs((currentPrice - prevPrice) * num)
   if (diff % 1 === 0) return diff.toString()
-  return diff.toFixed(2) // 使用绝对值，不显示正负号
+  return formatNumber(diff, 2).toString() // 使用绝对值，不显示正负号
 }
 
 // 获取当前持仓数量
@@ -187,7 +187,7 @@ const lastOperationDiff = computed(() => {
   const diffPercent = ((props.currentPrice - latestPrice) / latestPrice) * 100
   const absPercent = Math.abs(diffPercent)
   const formattedPercent =
-    absPercent % 1 === 0 ? absPercent.toString() : absPercent.toFixed(2).replace(/\.?0+$/, '')
+    absPercent % 1 === 0 ? absPercent.toString() : formatNumber(absPercent, 2).toString()
 
   const isClear =
     latestRecord.track_type === 'clear' ||
@@ -227,7 +227,7 @@ onMounted(() => {
           <div class="profit-row">
             <span class="profit-label">总盈亏</span>
             <span class="profit-value">
-              {{ totalProfit > 0 ? '+' : '' }}{{ totalProfit % 1 === 0 ? totalProfit.toString() : totalProfit.toFixed(2) }}
+              {{ totalProfit > 0 ? '+' : '' }}{{ totalProfit % 1 === 0 ? totalProfit.toString() : formatNumber(totalProfit, 2) }}
             </span>
           </div>
           <div v-if="lastOperationDiff" class="last-operation">

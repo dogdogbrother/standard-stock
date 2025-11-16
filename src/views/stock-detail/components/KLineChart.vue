@@ -2,6 +2,7 @@
 import { ref, onMounted, watch, nextTick } from 'vue'
 import * as echarts from 'echarts'
 import { supabase } from '@/lib/supabase'
+import { formatNumber } from '@/utils/format'
 
 interface Props {
   stockCode: string
@@ -334,7 +335,7 @@ const renderChart = (klines: string[]) => {
         fontSize: 10,
         formatter: (value: number) => {
           // 如果是整数，不显示小数位；否则最多显示2位小数
-          return value % 1 === 0 ? value.toString() : value.toFixed(2)
+          return value % 1 === 0 ? value.toString() : formatNumber(value, 2).toString()
         }
       },
       splitLine: {
@@ -394,7 +395,7 @@ const renderChart = (klines: string[]) => {
                   label: {
                     show: true,
                     position: 'end',
-                    formatter: () => yesterdayClose % 1 === 0 ? yesterdayClose.toString() : yesterdayClose.toFixed(2),
+                    formatter: () => yesterdayClose % 1 === 0 ? yesterdayClose.toString() : formatNumber(yesterdayClose, 2).toString(),
                     color: '#999',
                     fontSize: 10
                   }
@@ -431,8 +432,7 @@ const renderChart = (klines: string[]) => {
         // 格式化价格：去掉不必要的小数位
         const formatPrice = (price: number) => {
           if (price % 1 === 0) return price.toString()
-          const fixed = price.toFixed(3)
-          return fixed.replace(/\.?0+$/, '') // 去掉末尾的0和小数点
+          return formatNumber(price, 3).toString()
         }
         
         // 格式化日期
@@ -455,7 +455,7 @@ const renderChart = (klines: string[]) => {
         if (activeType.value === '1') {
           const price = data.value
           const changeAmount = price - yesterdayClose
-          const changePercent = ((changeAmount / yesterdayClose) * 100).toFixed(2)
+          const changePercent = formatNumber((changeAmount / yesterdayClose) * 100, 2)
           const changeColor = changeAmount >= 0 ? '#ff4d4f' : '#26a69a'
           
           tooltipContent += `价格: ${formatPrice(price)}<br/>`
@@ -527,7 +527,7 @@ const renderChart = (klines: string[]) => {
             
             const operationType = getOperationType(displayType)
             const operationColor = getOperationColor(displayType)
-            const amount = (trackRecord.money / 100).toFixed(2)
+            const amount = formatNumber(trackRecord.money / 100, 2)
             const opPrice = formatPrice(trackRecord.price / 100)
             
             tooltipContent += `<br/><br/><span style="color: ${operationColor}; font-weight: bold;">【${operationType}】</span>`
