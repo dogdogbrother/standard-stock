@@ -13,6 +13,7 @@ interface Buddy {
   id: number
   name: string
   avatar?: string
+  money: number  // 投入本金（单位：分）
   heldUnit?: number
   heldUnitStatus?: number
   created_at: string
@@ -107,32 +108,29 @@ const fetchBuddies = async (silent = false) => {
   }
 }
 
-// 计算份额价格
-const unitPrice = computed(() => {
-  if (!moneyStore.moneyData) return 0
-  const totalValue = (moneyStore.moneyData.money + (moneyStore.moneyData.usedMoney || 0))
-  return totalValue / 100000
-})
-
-// 计算昨日份额价格
-const yesterdayUnitPrice = computed(() => {
-  if (!moneyStore.moneyData) return 0
-  // 昨日总资产 = 今日总资产 - 今日收益
-  const yesterdayTotalValue = totalAssets.value - todayProfit.value
-  return yesterdayTotalValue / 100000
-})
-
-// 计算伙伴持有金额
+// 计算伙伴持有金额（返回元）
 const getBuddyAsset = (buddy: Buddy): number => {
   if (!buddy.heldUnit) return 0
-  return buddy.heldUnit * unitPrice.value
+  // 份额单价（元/份额）= 总资产 / 100000
+  const unitPriceInYuan = totalAssets.value / 100000
+  // 持有金额（元）= 持有份额 × 份额单价
+  return buddy.heldUnit * unitPriceInYuan
 }
 
-// 计算伙伴今日盈亏
-const getBuddyProfit = (buddy: Buddy): number => {
-  if (!buddy.heldUnit) return 0
-  // 今日盈亏 = 份额 × (今日份额价格 - 昨日份额价格)
-  return buddy.heldUnit * (unitPrice.value - yesterdayUnitPrice.value)
+// 计算伙伴持有盈亏值（返回元）
+const getBuddyProfitValue = (buddy: Buddy): number => {
+  const holdingAmount = getBuddyAsset(buddy)
+  const buddyMoneyInYuan = buddy.money / 100
+  // 盈亏 = 持有金额 - 投入本金
+  return holdingAmount - buddyMoneyInYuan
+}
+
+// 计算伙伴持有盈亏率（返回百分比）
+const getBuddyProfitRate = (buddy: Buddy): number => {
+  if (!buddy.money || buddy.money === 0) return 0
+  const profitValue = getBuddyProfitValue(buddy)
+  const buddyMoneyInYuan = buddy.money / 100
+  return (profitValue / buddyMoneyInYuan) * 100
 }
 
 // 过滤出有份额的伙伴
@@ -461,27 +459,23 @@ onMounted(async () => {
             </div>
             <div class="buddy-info">
               <div class="buddy-name">{{ buddy.name }}</div>
-              <div class="buddy-asset-row">
-                <div class="buddy-asset">
-                  持有金额：<span v-if="allDataLoaded">¥{{ formatNumber(getBuddyAsset(buddy), 2) }}</span><span v-else class="loading-text">计算中...</span>
-                </div>
-                <!-- 只有所有数据加载完成才显示收益 -->
-                <div v-if="!allDataLoaded" class="buddy-profit loading-text">
-                  -
-                </div>
-                <div v-else-if="!showTradingData" class="buddy-profit">
-                  -
-                </div>
-                <div 
-                  v-else
-                  class="buddy-profit"
-                  :class="{
-                    'profit-up': getBuddyProfit(buddy) > 0,
-                    'profit-down': getBuddyProfit(buddy) < 0
-                  }"
-                >
-                  {{ getBuddyProfit(buddy) > 0 ? '+' : '' }}{{ formatAmount(getBuddyProfit(buddy)) }}
-                </div>
+               <div class="buddy-asset-row">
+                 <div class="buddy-asset">
+                   持有金额:
+                   <span v-if="allDataLoaded">
+                     ¥{{ formatNumber(getBuddyAsset(buddy), 2) }}
+                     <span 
+                      class="buddy-profit-value"
+                      :class="{
+                        'profit-up': getBuddyProfitValue(buddy) > 0,
+                        'profit-down': getBuddyProfitValue(buddy) < 0
+                      }"
+                    >
+                      {{ getBuddyProfitValue(buddy) >= 0 ? '+' : '' }}¥{{ formatNumber(getBuddyProfitValue(buddy), 2) }}({{ getBuddyProfitValue(buddy) >= 0 ? '+' : '' }}{{ getBuddyProfitRate(buddy).toFixed(2) }}%)
+                    </span>
+                   </span>
+                   <span v-else class="loading-text">计算中...</span>
+                 </div>
               </div>
             </div>
           </div>
@@ -683,6 +677,18 @@ onMounted(async () => {
   
   .loading-text {
     color: #9ca3af;
+  }
+}
+
+.buddy-profit-value {
+  font-weight: 500;
+  margin-left: 5px;
+  &.profit-up {
+    color: #ef4444; // 盈利显示红色
+  }
+  
+  &.profit-down {
+    color: #10b981; // 亏损显示绿色
   }
 }
 
