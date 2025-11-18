@@ -186,7 +186,9 @@ const addToWatchlist = async () => {
   if (!isLoggedIn.value) return
   
   try {
-    await watchlistStore.addToWatchlist(stockCode.value, invt.value as 'sh' | 'sz')
+    // 传入最新价（如果有的话）
+    const price = stockInfo.value?.price
+    await watchlistStore.addToWatchlist(stockCode.value, invt.value as 'sh' | 'sz', price)
     showToast('添加自选成功')
     // store 已经刷新了缓存，直接从缓存读取
     isInWatchlist.value = watchlistStore.isInWatchlistCache(stockCode.value, invt.value as 'sh' | 'sz')

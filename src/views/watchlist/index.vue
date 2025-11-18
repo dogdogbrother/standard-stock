@@ -33,6 +33,18 @@ const calculateTrackChange = (stock: StockDetail): number => {
   return ((currentPrice - trackPrice) / trackPrice) * 100
 }
 
+// 计算关注以来的涨跌幅
+const calculateWatchlistChange = (stock: StockDetail): number => {
+  if (!stock.watchlistPrice) return 0
+  
+  const watchlistPrice = stock.watchlistPrice / 100 // 关注时的价格（单位：元）
+  const currentPrice = typeof stock.price === 'string' ? parseFloat(stock.price) : stock.price
+  
+  if (!watchlistPrice || !currentPrice) return 0
+  
+  return ((currentPrice - watchlistPrice) / watchlistPrice) * 100
+}
+
 // 判断是否是交易时间（工作日 9:30 之后）
 const isTradingTime = (): boolean => {
   const now = new Date()
@@ -175,6 +187,18 @@ onMounted(async () => {
                 }"
               >
                 {{ calculateTrackChange(stock) > 0 ? '+' : '' }}{{ formatNumber(calculateTrackChange(stock), 2) }}%
+              </span>
+            </div>
+            <div v-else-if="stock.watchlistPrice !== undefined && stock.watchlistPrice !== null" class="stock-track">
+              关注以来涨跌
+              <span 
+                class="track-change"
+                :class="{
+                  'positive': calculateWatchlistChange(stock) > 0,
+                  'negative': calculateWatchlistChange(stock) < 0
+                }"
+              >
+                {{ calculateWatchlistChange(stock) > 0 ? '+' : '' }}{{ formatNumber(calculateWatchlistChange(stock), 2) }}%
               </span>
             </div>
           </div>

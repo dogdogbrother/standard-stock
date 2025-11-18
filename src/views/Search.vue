@@ -31,6 +31,7 @@ const results = ref<StockItem[]>([])
 const loading = ref(false)
 const errorMessage = ref('')
 const hasSearched = ref(false)
+const addingStocks = ref(new Set<string>()) // 正在添加的股票集合
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 let requestId = 0
 
@@ -133,15 +134,79 @@ const goToStockDetail = (item: StockItem) => {
   router.push(`/stock/${item.exchange.toLowerCase()}/${item.code}`)
 }
 
+// 检查股票是否在自选中
+const isInWatchlist = (item: StockItem): boolean => {
+  return watchlistStore.isInWatchlistCache(item.code, item.exchange.toLowerCase() as 'sh' | 'sz')
+}
+
+// 检查股票是否正在添加
+const isAddingStock = (item: StockItem): boolean => {
+  return addingStocks.value.has(`${item.exchange}_${item.code}`)
+}
+
+// 将 exchange 转换为东方财富的市场代码
+const convertExchangeToMarket = (exchange: string): string => {
+  return exchange.toLowerCase() === 'sz' ? '0' : '1' // sz -> 0, sh -> 1
+}
+
+// 获取股票最新价
+const fetchStockPrice = async (item: StockItem): Promise<number | undefined> => {
+  try {
+    const secid = `${convertExchangeToMarket(item.exchange)}.${item.code}`
+    const fields = 'f2' // f2 是最新价
+    const apiUrl = import.meta.env.VITE_STOCK_DETAIL_API || 'https://qixncbgvrkfjxopqqpiz.supabase.co/functions/v1/stock-detail'
+    const url = `${apiUrl}?secids=${encodeURIComponent(secid)}&fields=${encodeURIComponent(fields)}`
+    
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${supabaseAnonKey}`,
+        'Content-Type': 'application/json'
+      }
+    })
+    
+    if (!response.ok) {
+      return undefined
+    }
+    
+    const result = await response.json()
+    
+    if (result.data && result.data.diff && result.data.diff.length > 0) {
+      const stockData = result.data.diff[0]
+      // f2 是最新价，单位是分，需要转为元
+      return stockData.f2 ? stockData.f2 / 100 : undefined
+    }
+    
+    return undefined
+  } catch (err) {
+    return undefined
+  }
+}
+
 // 添加到自选
 const addToWatchlist = async (item: StockItem, event: Event) => {
   // 阻止冒泡，避免触发父元素的跳转
   event.stopPropagation()
   
+  const stockKey = `${item.exchange}_${item.code}`
+  
+  // 如果正在添加中，忽略重复点击
+  if (addingStocks.value.has(stockKey)) {
+    return
+  }
+  
+  // 添加到正在添加的集合中
+  addingStocks.value.add(stockKey)
+  
   try {
+    // 先获取股票最新价
+    const price = await fetchStockPrice(item)
+    
+    // 添加到自选列表，并传入最新价
     await watchlistStore.addToWatchlist(
       item.code,
-      item.exchange.toLowerCase() as 'sh' | 'sz'
+      item.exchange.toLowerCase() as 'sh' | 'sz',
+      price
     )
     
     showToast({
@@ -158,10 +223,18 @@ const addToWatchlist = async (item: StockItem, event: Event) => {
         icon: 'fail'
       })
     }
+  } finally {
+    // 从正在添加的集合中移除
+    addingStocks.value.delete(stockKey)
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  // 加载 watchlist 数据，确保缓存是最新的
+  if (watchlistStore.stockList.length === 0) {
+    await watchlistStore.fetchWatchlist()
+  }
+  
   requestAnimationFrame(() => {
     searchRef.value?.focus?.()
   })
@@ -212,7 +285,17 @@ const hasKeyword = computed(() => keyword.value.trim().length > 0)
             <div class="name">{{ item.name }}</div>
             <div class="code">{{ item.exchange }}{{ item.code }}</div>
           </div>
-          <div class="add-button" @click="addToWatchlist(item, $event)">
+          <!-- 如果已在自选中，显示已添加标识 -->
+          <div v-if="isInWatchlist(item)" class="added-badge">
+            <van-icon name="success" />
+            <span>已添加</span>
+          </div>
+          <!-- 如果正在添加中，显示 loading -->
+          <div v-else-if="isAddingStock(item)" class="add-button loading">
+            <van-loading size="16px" color="#3b82f6" />
+          </div>
+          <!-- 如果不在自选中，显示添加按钮 -->
+          <div v-else class="add-button" @click="addToWatchlist(item, $event)">
             <van-icon name="plus" />
           </div>
         </div>
@@ -361,6 +444,31 @@ const hasKeyword = computed(() => keyword.value.trim().length > 0)
     background-color: #d0e7ff;
     transform: scale(0.95);
   }
+  
+  &.loading {
+    pointer-events: none;
+    opacity: 0.8;
+  }
+}
+
+.result-item .added-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background-color: #f0f9ff;
+  flex-shrink: 0;
+
+  :deep(.van-icon) {
+    font-size: 14px;
+    color: #10b981;
+  }
+
+  span {
+    font-size: 12px;
+    color: #6b7280;
+  }
 }
 
 .empty-state .icon {
@@ -369,3 +477,4 @@ const hasKeyword = computed(() => keyword.value.trim().length > 0)
   margin-bottom: @spacing-md;
 }
 </style>
+

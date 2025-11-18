@@ -9,6 +9,7 @@ export interface WatchlistItem {
   invt: 'sh' | 'sz'
   stock: string
   created_at: string
+  price: number
 }
 
 export interface TrackRecord {
@@ -38,6 +39,7 @@ export interface StockDetail {
   lastTrack?: TrackRecord // 最近一次操作
   trackCount?: number // 操作次数
   dividend?: Dividend // 股息率信息
+  watchlistPrice?: number // 添加自选时的价格（单位：分）
 }
 
 export const useWatchlistStore = defineStore('watchlist', () => {
@@ -77,6 +79,7 @@ export const useWatchlistStore = defineStore('watchlist', () => {
       if (watchlistError) {
         throw watchlistError
       }
+      console.log(watchlistData);
       
       if (!watchlistData || watchlistData.length === 0) {
         stockList.value = []
@@ -178,7 +181,8 @@ export const useWatchlistStore = defineStore('watchlist', () => {
             invt: item.f13 === 0 ? 'sz' : 'sh',
             lastTrack: tracksWithClear.length > 0 ? tracksWithClear[0] : undefined,
             trackCount: tracksWithClear.length,
-            dividend: dividend
+            dividend: dividend,
+            watchlistPrice: watchlistItem?.price // 添加自选时的价格（单位：分）
           }
         })
         
@@ -204,7 +208,7 @@ export const useWatchlistStore = defineStore('watchlist', () => {
   }
 
   // 添加自选
-  const addToWatchlist = async (stock: string, invt: 'sh' | 'sz') => {
+  const addToWatchlist = async (stock: string, invt: 'sh' | 'sz', price?: number) => {
     try {
       // 先检查是否已存在
       const checkResult = await checkInWatchlist(stock, invt)
@@ -214,9 +218,18 @@ export const useWatchlistStore = defineStore('watchlist', () => {
         throw error
       }
       
+      // 构建插入数据，如果有价格则包含价格字段（单位：分）
+      const insertData: any = {
+        stock,
+        invt
+      }
+      if (price !== undefined) {
+        insertData.price = Math.round(price * 100) // 元转分（整数）
+      }
+      
       const { error } = await supabase
         .from('watchlist')
-        .insert([{ stock, invt }])
+        .insert([insertData])
       
       if (error) throw error
       
