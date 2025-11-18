@@ -198,6 +198,14 @@ const addToWatchlist = async (item: StockItem, event: Event) => {
   // 添加到正在添加的集合中
   addingStocks.value.add(stockKey)
   
+  // 显示加载提示
+  const toast = showToast({
+    type: 'loading',
+    message: '添加中...',
+    forbidClick: true,
+    duration: 0
+  })
+  
   try {
     // 先获取股票最新价
     const price = await fetchStockPrice(item)
@@ -209,18 +217,28 @@ const addToWatchlist = async (item: StockItem, event: Event) => {
       price
     )
     
+    // 关闭 loading
+    toast.close()
+    
+    // 显示成功提示
     showToast({
-      message: '添加自选成功',
-      icon: 'success'
+      type: 'success',
+      message: '添加自选成功'
     })
   } catch (err: any) {
+    // 关闭 loading
+    toast.close()
+    
     // 检查是否是重复添加的错误（23505是 PostgreSQL 的唯一约束错误代码）
-    if (err?.code === '23505' || err?.message?.includes('duplicate')) {
-      showToast('已在自选中')
+    if (err?.code === '23505' || err?.message?.includes('duplicate') || err?.message?.includes('已在自选中')) {
+      showToast({
+        type: 'fail',
+        message: '已在自选中'
+      })
     } else {
       showToast({
-        message: '添加失败',
-        icon: 'fail'
+        type: 'fail',
+        message: '添加失败'
       })
     }
   } finally {
@@ -231,7 +249,7 @@ const addToWatchlist = async (item: StockItem, event: Event) => {
 
 onMounted(async () => {
   // 加载 watchlist 数据，确保缓存是最新的
-  if (watchlistStore.stockList.length === 0) {
+  if (watchlistStore.watchlistData.length === 0) {
     await watchlistStore.fetchWatchlist()
   }
   

@@ -1,10 +1,24 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useWatchlistStore, type StockDetail } from '@/stores/watchlist'
+import { useWatchlistStore, type TrackRecord, type Dividend } from '@/stores/watchlist'
 import { usePositionStore } from '@/stores/position'
 import SearchBar from './components/SearchBar.vue'
 import { formatNumber } from '@/utils/format'
+
+// 页面级的股票详情数据结构
+interface StockDetail {
+  code: string
+  name: string
+  price: string | number
+  change: number
+  changePercent: number
+  invt: string
+  lastTrack?: TrackRecord
+  trackCount?: number
+  dividend?: Dividend
+  watchlistPrice?: number
+}
 
 const router = useRouter()
 const watchlistStore = useWatchlistStore()
@@ -12,6 +26,8 @@ const positionStore = usePositionStore()
 const refreshing = ref(false) // 下拉刷新状态
 const sortOrder = ref<'default' | 'asc' | 'desc'>('default') // default: 默认, asc: 升序, desc: 降序
 const initialLoaded = ref(false) // 是否已完成首次加载
+const stockList = ref<StockDetail[]>([]) // 页面级的股票详情列表
+const originalStockList = ref<StockDetail[]>([]) // 缓存原始列表（用于排序恢复）
 
 // 格式化操作日期为 MM-DD
 const formatTrackDate = (dateStr: string): string => {
@@ -69,10 +85,104 @@ const isTradingTime = (): boolean => {
 // 判断是否显示交易数据
 const showTradingData = isTradingTime()
 
+// 将 invt 转换为东方财富的市场代码
+const convertInvtToMarket = (invt: string): string => {
+  return invt === 'sz' ? '0' : '1' // sz -> 0, sh -> 1
+}
+
+// 获取股票详情并合并 watchlist 数据
+const fetchStockDetails = async () => {
+  try {
+    // 先获取 watchlist 数据
+    await watchlistStore.fetchWatchlist()
+    
+    const watchlistData = watchlistStore.watchlistData
+    if (!watchlistData || watchlistData.length === 0) {
+      stockList.value = []
+      originalStockList.value = []
+      return
+    }
+    
+    // 拼接 secids 参数
+    const secids = watchlistData
+      .map((item) => `${convertInvtToMarket(item.invt)}.${item.stock}`)
+      .join(',')
+    
+    // 请求东方财富接口获取股票详情
+    const fields = 'f18,f2,f3,f4,f12,f13,f14'
+    const apiUrl = import.meta.env.VITE_STOCK_DETAIL_API || 'https://qixncbgvrkfjxopqqpiz.supabase.co/functions/v1/stock-detail'
+    const url = `${apiUrl}?secids=${encodeURIComponent(secids)}&fields=${encodeURIComponent(fields)}`
+    
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${supabaseAnonKey}`,
+        'Content-Type': 'application/json'
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error('获取股票详情失败')
+    }
+    
+    const result = await response.json()
+    
+    if (result.data && result.data.diff) {
+      // 转换数据格式并合并 watchlist 数据
+      const transformed = result.data.diff.map((item: any) => {
+        // 找到对应的 watchlist 数据
+        const watchlistItem = watchlistData.find((w) => 
+          w.stock === item.f12 && (item.f13 === 0 ? 'sz' : 'sh') === w.invt
+        )
+        
+        // 计算清仓状态
+        const tracks = watchlistItem?.tracks || []
+        const tracksWithClear = tracks.map((track, index) => {
+          if (track.track_type === 'reduce') {
+            let cumulativeQty = 0
+            for (let i = tracks.length - 1; i >= index; i--) {
+              const t = tracks[i]
+              if (!t) continue
+              if (t.track_type === 'increase') {
+                cumulativeQty += t.num
+              } else if (t.track_type === 'reduce') {
+                cumulativeQty -= t.num
+              }
+            }
+            return {
+              ...track,
+              track_type: cumulativeQty === 0 ? 'clear' as const : 'reduce' as const
+            }
+          }
+          return track
+        })
+        
+        return {
+          code: item.f12,
+          name: item.f14,
+          price: item.f2 ? formatNumber(item.f2 / 100, 3).toString() : '--',
+          change: item.f4 ? item.f4 / 100 : 0,
+          changePercent: item.f3 ? item.f3 / 100 : 0,
+          invt: item.f13 === 0 ? 'sz' : 'sh',
+          lastTrack: tracksWithClear.length > 0 ? tracksWithClear[0] : undefined,
+          trackCount: tracksWithClear.length,
+          dividend: watchlistItem?.dividend,
+          watchlistPrice: watchlistItem?.price
+        }
+      })
+      
+      originalStockList.value = [...transformed]
+      stockList.value = transformed
+    }
+  } catch (err) {
+    console.error('获取股票详情失败:', err)
+  }
+}
+
 // 下拉刷新
 const onRefresh = async () => {
   refreshing.value = true
-  await watchlistStore.refreshWatchlist()
+  await fetchStockDetails()
   refreshing.value = false
   // 重置排序状态
   sortOrder.value = 'default'
@@ -80,6 +190,11 @@ const onRefresh = async () => {
 
 const goToStockDetail = (stock: StockDetail) => {
   router.push(`/stock/${stock.invt}/${stock.code}`)
+}
+
+// 判断是否是持仓股
+const isInPosition = (stock: StockDetail): boolean => {
+  return positionStore.isInPositionCache(stock.code, stock.invt)
 }
 
 // 切换排序
@@ -92,7 +207,14 @@ const toggleSort = () => {
     sortOrder.value = 'default' // 第三次点击：恢复默认
   }
   
-  watchlistStore.sortStockList(sortOrder.value)
+  // 在页面级进行排序
+  if (sortOrder.value === 'default') {
+    stockList.value = [...originalStockList.value]
+  } else if (sortOrder.value === 'desc') {
+    stockList.value.sort((a, b) => b.changePercent - a.changePercent)
+  } else {
+    stockList.value.sort((a, b) => a.changePercent - b.changePercent)
+  }
 }
 
 onMounted(async () => {
@@ -101,8 +223,8 @@ onMounted(async () => {
     await positionStore.fetchPositions()
   }
   
-  // 加载自选列表
-  await watchlistStore.fetchWatchlist()
+  // 加载股票详情
+  await fetchStockDetails()
   
   // 标记首次加载完成
   initialLoaded.value = true
@@ -124,7 +246,7 @@ onMounted(async () => {
         <p>{{ watchlistStore.error }}</p>
       </div>
       
-      <div v-else-if="watchlistStore.stockList.length > 0" class="stock-container">
+      <div v-else-if="stockList.length > 0" class="stock-container">
         <div class="stock-header">
           <div class="header-name">名称/代码</div>
           <div class="header-price">最新</div>
@@ -140,7 +262,7 @@ onMounted(async () => {
         
         <div class="stock-list">
           <div 
-            v-for="stock in watchlistStore.stockList" 
+            v-for="stock in stockList" 
             :key="`${stock.invt}${stock.code}`"
             class="stock-item"
             @click="goToStockDetail(stock)"
@@ -149,7 +271,7 @@ onMounted(async () => {
               <div class="stock-info">
                 <div class="stock-name">
                   {{ stock.name }}
-                  <span v-if="watchlistStore.isInPosition(stock)" class="position-badge">持</span>
+                  <span v-if="isInPosition(stock)" class="position-badge">持</span>
                   <span v-if="stock.dividend" class="dividend-badge">息{{ stock.dividend.num }}%</span>
                 </div>
                 <div class="stock-code">{{ stock.invt.toUpperCase() }}{{ stock.code }}</div>

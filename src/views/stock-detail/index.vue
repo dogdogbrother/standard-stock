@@ -38,6 +38,7 @@ const loading = ref(true)
 const stockInfo = ref<StockInfo | null>(null)
 const isInWatchlist = ref(false)
 const isInPosition = ref(false)
+const watchlistLoading = ref(false) // 添加/取消自选的 loading 状态
 
 // 检查用户是否登录
 const parseCookies = () => {
@@ -156,7 +157,7 @@ const checkWatchlist = async () => {
     isInWatchlist.value = watchlistStore.isInWatchlistCache(stockCode.value, invt.value as 'sh' | 'sz')
     
     // 如果缓存为空（首次进入详情页或刷新后），则从数据库查询
-    if (watchlistStore.stockList.length === 0) {
+    if (watchlistStore.watchlistData.length === 0) {
       const result = await watchlistStore.checkInWatchlist(stockCode.value, invt.value as 'sh' | 'sz')
       isInWatchlist.value = result.isInWatchlist
     }
@@ -185,15 +186,32 @@ const checkPosition = async () => {
 const addToWatchlist = async () => {
   if (!isLoggedIn.value) return
   
+  // 如果正在操作中，忽略重复点击
+  if (watchlistLoading.value) return
+  
+  watchlistLoading.value = true
+  
   try {
     // 传入最新价（如果有的话）
     const price = stockInfo.value?.price
     await watchlistStore.addToWatchlist(stockCode.value, invt.value as 'sh' | 'sz', price)
-    showToast('添加自选成功')
+    
+    // 显示成功提示
+    showToast({
+      type: 'success',
+      message: '添加自选成功'
+    })
+    
     // store 已经刷新了缓存，直接从缓存读取
     isInWatchlist.value = watchlistStore.isInWatchlistCache(stockCode.value, invt.value as 'sh' | 'sz')
-  } catch (err) {
-    showToast('添加自选失败')
+  } catch (err: any) {
+    // 显示失败提示
+    showToast({
+      type: 'fail',
+      message: err?.message?.includes('已在自选中') ? '已在自选中' : '添加自选失败'
+    })
+  } finally {
+    watchlistLoading.value = false
   }
 }
 
@@ -203,17 +221,37 @@ const removeFromWatchlist = async () => {
   
   // 如果是持仓股，不允许取消自选
   if (isInPosition.value) {
-    showToast('持仓股不能取消自选')
+    showToast({
+      type: 'fail',
+      message: '持仓股不能取消自选'
+    })
     return
   }
   
+  // 如果正在操作中，忽略重复点击
+  if (watchlistLoading.value) return
+  
+  watchlistLoading.value = true
+  
   try {
     await watchlistStore.removeFromWatchlist(stockCode.value, invt.value as 'sh' | 'sz')
-    showToast('取消自选成功')
+    
+    // 显示成功提示
+    showToast({
+      type: 'success',
+      message: '取消自选成功'
+    })
+    
     // store 已经刷新了缓存，直接从缓存读取
     isInWatchlist.value = watchlistStore.isInWatchlistCache(stockCode.value, invt.value as 'sh' | 'sz')
   } catch (err) {
-    showToast('取消自选失败')
+    // 显示失败提示
+    showToast({
+      type: 'fail',
+      message: '取消自选失败'
+    })
+  } finally {
+    watchlistLoading.value = false
   }
 }
 
@@ -227,7 +265,7 @@ onMounted(async () => {
     const promises = []
     
     // 如果 watchlist 还没有数据，先加载 watchlist（为后续页面提供缓存）
-    if (watchlistStore.stockList.length === 0) {
+    if (watchlistStore.watchlistData.length === 0) {
       promises.push(watchlistStore.fetchWatchlist())
     }
     
@@ -265,6 +303,8 @@ onMounted(async () => {
           type="primary" 
           size="small"
           icon="star-o"
+          :loading="watchlistLoading"
+          :disabled="watchlistLoading"
           @click="addToWatchlist"
         >
           添加自选
@@ -274,7 +314,8 @@ onMounted(async () => {
           type="default" 
           size="small"
           icon="star"
-          :disabled="isInPosition"
+          :loading="watchlistLoading"
+          :disabled="isInPosition || watchlistLoading"
           @click="removeFromWatchlist"
         >
           {{ isInPosition ? '持仓中' : '取消自选' }}
