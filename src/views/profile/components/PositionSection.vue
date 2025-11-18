@@ -152,6 +152,7 @@ defineExpose({
 <style scoped lang="less">
 .position-section {
   margin-top: 20px;
+  margin-bottom: 45px;
   padding: 16px;
   background-color: #f9fafb;
   border-radius: 8px;

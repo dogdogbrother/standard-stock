@@ -41,6 +41,46 @@ export const useWatchlistStore = defineStore('watchlist', () => {
   const loading = ref(false)
   const error = ref('')
 
+  // 获取自选股票基本列表（只从 watchlist 表，不包含 tracks 和 dividend）
+  const fetchWatchlistBasic = async (isRefresh = false) => {
+    if (!isRefresh) {
+      loading.value = true
+      error.value = ''
+      watchlistData.value = []
+    }
+    
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('watchlist')
+        .select('*')
+        .order('created_at', { ascending: false })
+      
+      if (fetchError) throw fetchError
+      
+      if (!data || data.length === 0) {
+        watchlistData.value = []
+        return
+      }
+      
+      // 转换为 WatchlistWithTracks 格式（但 tracks 和 dividend 为空）
+      watchlistData.value = data.map((item: any) => ({
+        id: item.id,
+        stock: item.stock,
+        invt: item.invt,
+        created_at: item.created_at,
+        price: item.price,
+        tracks: [],
+        dividend: undefined
+      }))
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : '加载失败'
+    } finally {
+      if (!isRefresh) {
+        loading.value = false
+      }
+    }
+  }
+
   // 获取自选股票列表（从 watchlist_with_tracks 视图）
   const fetchWatchlist = async (isRefresh = false) => {
     if (!isRefresh) {
@@ -204,6 +244,7 @@ export const useWatchlistStore = defineStore('watchlist', () => {
     error,
     hasWatchlist,
     fetchWatchlist,
+    fetchWatchlistBasic,
     addToWatchlist,
     removeFromWatchlist,
     checkInWatchlist,

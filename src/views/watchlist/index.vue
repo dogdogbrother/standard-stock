@@ -93,8 +93,8 @@ const convertInvtToMarket = (invt: string): string => {
 // 获取股票详情并合并 watchlist 数据
 const fetchStockDetails = async () => {
   try {
-    // 先获取 watchlist 数据
-    await watchlistStore.fetchWatchlist()
+    // 先获取 watchlist 基本数据（不包含 tracks 和 dividend）
+    await watchlistStore.fetchWatchlistBasic()
     
     const watchlistData = watchlistStore.watchlistData
     if (!watchlistData || watchlistData.length === 0) {
@@ -128,34 +128,12 @@ const fetchStockDetails = async () => {
     const result = await response.json()
     
     if (result.data && result.data.diff) {
-      // 转换数据格式并合并 watchlist 数据
+      // 转换数据格式并合并 watchlist 数据（不包含 tracks 和 dividend，先快速渲染）
       const transformed = result.data.diff.map((item: any) => {
         // 找到对应的 watchlist 数据
         const watchlistItem = watchlistData.find((w) => 
           w.stock === item.f12 && (item.f13 === 0 ? 'sz' : 'sh') === w.invt
         )
-        
-        // 计算清仓状态
-        const tracks = watchlistItem?.tracks || []
-        const tracksWithClear = tracks.map((track, index) => {
-          if (track.track_type === 'reduce') {
-            let cumulativeQty = 0
-            for (let i = tracks.length - 1; i >= index; i--) {
-              const t = tracks[i]
-              if (!t) continue
-              if (t.track_type === 'increase') {
-                cumulativeQty += t.num
-              } else if (t.track_type === 'reduce') {
-                cumulativeQty -= t.num
-              }
-            }
-            return {
-              ...track,
-              track_type: cumulativeQty === 0 ? 'clear' as const : 'reduce' as const
-            }
-          }
-          return track
-        })
         
         return {
           code: item.f12,
@@ -164,18 +142,72 @@ const fetchStockDetails = async () => {
           change: item.f4 ? item.f4 / 100 : 0,
           changePercent: item.f3 ? item.f3 / 100 : 0,
           invt: item.f13 === 0 ? 'sz' : 'sh',
-          lastTrack: tracksWithClear.length > 0 ? tracksWithClear[0] : undefined,
-          trackCount: tracksWithClear.length,
-          dividend: watchlistItem?.dividend,
           watchlistPrice: watchlistItem?.price
         }
       })
       
       originalStockList.value = [...transformed]
       stockList.value = transformed
+      
+      // 在后台异步加载 tracks 和 dividend 数据（不阻塞主流程）
+      loadTracksAndDividends()
     }
   } catch (err) {
     console.error('获取股票详情失败:', err)
+  }
+}
+
+// 后台加载 tracks 和 dividend 数据
+const loadTracksAndDividends = async () => {
+  try {
+    // 重新从 watchlist_with_tracks 视图加载完整数据（包含 tracks 和 dividend）
+    await watchlistStore.fetchWatchlist(true) // isRefresh = true，不重置 loading 状态
+    
+    const watchlistData = watchlistStore.watchlistData
+    if (!watchlistData || watchlistData.length === 0) return
+    
+    // 更新 stockList，添加 tracks 和 dividend 数据
+    stockList.value = stockList.value.map((stock) => {
+      const watchlistItem = watchlistData.find((w) => 
+        w.stock === stock.code && w.invt === stock.invt
+      )
+      
+      if (!watchlistItem) return stock
+      
+      // 计算清仓状态
+      const tracks = watchlistItem.tracks || []
+      const tracksWithClear = tracks.map((track, index) => {
+        if (track.track_type === 'reduce') {
+          let cumulativeQty = 0
+          for (let i = tracks.length - 1; i >= index; i--) {
+            const t = tracks[i]
+            if (!t) continue
+            if (t.track_type === 'increase') {
+              cumulativeQty += t.num
+            } else if (t.track_type === 'reduce') {
+              cumulativeQty -= t.num
+            }
+          }
+          return {
+            ...track,
+            track_type: cumulativeQty === 0 ? 'clear' as const : 'reduce' as const
+          }
+        }
+        return track
+      })
+      
+      return {
+        ...stock,
+        lastTrack: tracksWithClear.length > 0 ? tracksWithClear[0] : undefined,
+        trackCount: tracksWithClear.length,
+        dividend: watchlistItem.dividend
+      }
+    })
+    
+    // 同时更新原始列表
+    originalStockList.value = [...stockList.value]
+  } catch (err) {
+    console.error('后台加载tracks和dividend失败:', err)
   }
 }
 
@@ -218,16 +250,18 @@ const toggleSort = () => {
 }
 
 onMounted(async () => {
-  // 如果 position store 没有数据，先加载持仓数据（为判断持仓股提供缓存）
-  if (positionStore.positionList.length === 0) {
-    await positionStore.fetchPositions()
-  }
-  
-  // 加载股票详情
+  // 加载股票详情（主要数据）
   await fetchStockDetails()
   
   // 标记首次加载完成
   initialLoaded.value = true
+  
+  // 在后台异步加载持仓数据和dividend数据（不阻塞主流程）
+  if (positionStore.positionList.length === 0) {
+    positionStore.fetchPositions().catch(err => {
+      console.error('后台加载持仓数据失败:', err)
+    })
+  }
 })
 </script>
 
