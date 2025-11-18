@@ -18,6 +18,20 @@ const positionForm = ref({
   quantity: ''
 })
 
+// 增加持股数量（加100）
+const increaseQuantity = () => {
+  const current = parseFloat(positionForm.value.quantity) || 0
+  positionForm.value.quantity = String(current + 100)
+}
+
+// 减少持股数量（减100）
+const decreaseQuantity = () => {
+  const current = parseFloat(positionForm.value.quantity) || 0
+  if (current >= 100) {
+    positionForm.value.quantity = String(current - 100)
+  }
+}
+
 // 股票搜索建议相关
 const searchLoading = ref(false)
 const searchResults = ref<any[]>([])
@@ -182,6 +196,17 @@ const beforeCloseDialog = async (action: string) => {
         selectedStockMarket.value = matchedStock.market
         selectedStockName.value = matchedStock.name
       }
+    }
+    
+    // 校验股票名称和市场类型必须存在
+    if (!selectedStockName.value) {
+      showToast('未找到该股票信息，请重新选择')
+      return false
+    }
+    
+    if (!selectedStockMarket.value) {
+      showToast('股票市场类型缺失，请重新选择')
+      return false
     }
     
     const success = await addPosition()
@@ -421,17 +446,30 @@ watch(visible, async (newVal, oldVal) => {
           <span class="unit">元</span>
         </template>
       </van-field>
-      <van-field
-        v-model="positionForm.quantity"
-        label="持股数量"
-        type="number"
-        placeholder="请输入持股数量"
-        required
-      >
-        <template #right-icon>
-          <span class="unit">股</span>
-        </template>
-      </van-field>
+      <div class="quantity-field-wrapper">
+        <div class="quantity-label">持股数量</div>
+        <div class="quantity-control">
+          <van-button 
+            icon="minus" 
+            size="small" 
+            @click="decreaseQuantity"
+            :disabled="!positionForm.quantity || parseFloat(positionForm.quantity) < 100"
+          />
+          <van-field
+            v-model="positionForm.quantity"
+            type="number"
+            placeholder="持股数量"
+            class="quantity-input"
+            center
+          />
+          <van-button 
+            icon="plus" 
+            size="small" 
+            @click="increaseQuantity"
+          />
+        </div>
+        <span class="quantity-unit">股</span>
+      </div>
     </div>
   </van-dialog>
 </template>
@@ -520,6 +558,51 @@ watch(visible, async (newVal, oldVal) => {
   color: #646566;
   font-size: 14px;
   padding-right: 8px;
+}
+
+.quantity-field-wrapper {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  background-color: #ffffff;
+  
+  .quantity-label {
+    font-size: 14px;
+    color: #646566;
+    margin-right: 12px;
+    width: 88px;
+    flex-shrink: 0;
+  }
+  
+  .quantity-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    
+    .quantity-input {
+      flex: 1;
+      padding: 0;
+      
+      :deep(.van-field__control) {
+        text-align: center;
+      }
+    }
+    
+    :deep(.van-button) {
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      font-size: 12px;
+    }
+  }
+  
+  .quantity-unit {
+    color: #646566;
+    font-size: 14px;
+    margin-left: 8px;
+    flex-shrink: 0;
+  }
 }
 </style>
 

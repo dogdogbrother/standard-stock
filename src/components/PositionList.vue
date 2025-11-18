@@ -65,6 +65,26 @@ const reduceForm = ref({
   newCost: 0
 })
 
+// 增加减仓数量（加100）
+const increaseReduceQuantity = () => {
+  const current = parseFloat(reduceForm.value.reduceQuantity) || 0
+  const newQuantity = current + 100
+  // 不能超过当前持股数量
+  if (newQuantity <= reduceForm.value.currentQuantity) {
+    reduceForm.value.reduceQuantity = String(newQuantity)
+    calculateNewCost()
+  }
+}
+
+// 减少减仓数量（减100）
+const decreaseReduceQuantity = () => {
+  const current = parseFloat(reduceForm.value.reduceQuantity) || 0
+  if (current >= 100) {
+    reduceForm.value.reduceQuantity = String(current - 100)
+    calculateNewCost()
+  }
+}
+
 // 计算盈亏金额
 const getProfitAmount = (position: Position): number => {
   if (position.currentPrice === undefined) return 0
@@ -400,18 +420,32 @@ const confirmReduce = async () => {
             <span class="unit">元</span>
           </template>
         </van-field>
-        <van-field
-          v-model="reduceForm.reduceQuantity"
-          label="减仓数量"
-          type="number"
-          placeholder="请输入减仓数量"
-          required
-          @input="calculateNewCost"
-        >
-          <template #right-icon>
-            <span class="unit">股</span>
-          </template>
-        </van-field>
+        <div class="quantity-field-wrapper">
+          <div class="quantity-label">减仓数量</div>
+          <div class="quantity-control">
+            <van-button 
+              icon="minus" 
+              size="small" 
+              @click="decreaseReduceQuantity"
+              :disabled="!reduceForm.reduceQuantity || parseFloat(reduceForm.reduceQuantity) < 100"
+            />
+            <van-field
+              v-model="reduceForm.reduceQuantity"
+              type="number"
+              placeholder="减仓数量"
+              class="quantity-input"
+              center
+              @input="calculateNewCost"
+            />
+            <van-button 
+              icon="plus" 
+              size="small" 
+              @click="increaseReduceQuantity"
+              :disabled="!reduceForm.reduceQuantity ? false : parseFloat(reduceForm.reduceQuantity) + 100 > reduceForm.currentQuantity"
+            />
+          </div>
+          <span class="quantity-unit">股</span>
+        </div>
         
         <!-- 显示新成本价 -->
         <div v-if="reduceForm.reduceQuantity && parseFloat(reduceForm.reduceQuantity) > 0 && parseFloat(reduceForm.reduceQuantity) < reduceForm.currentQuantity" class="new-cost-info">
@@ -645,6 +679,51 @@ const confirmReduce = async () => {
   color: #646566;
   font-size: 14px;
   padding-right: 8px;
+}
+
+.quantity-field-wrapper {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  background-color: #ffffff;
+  
+  .quantity-label {
+    font-size: 14px;
+    color: #646566;
+    margin-right: 12px;
+    width: 88px;
+    flex-shrink: 0;
+  }
+  
+  .quantity-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    
+    .quantity-input {
+      flex: 1;
+      padding: 0;
+      
+      :deep(.van-field__control) {
+        text-align: center;
+      }
+    }
+    
+    :deep(.van-button) {
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      font-size: 12px;
+    }
+  }
+  
+  .quantity-unit {
+    color: #646566;
+    font-size: 14px;
+    margin-left: 8px;
+    flex-shrink: 0;
+  }
 }
 </style>
 
