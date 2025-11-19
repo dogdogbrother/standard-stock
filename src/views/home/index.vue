@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { useRouter } from 'vue-router'
 import { supabase } from '@/lib/supabase'
 import { usePositionStore } from '@/stores/position'
 import { useMoneyStore } from '@/stores/money'
-import PositionList from '@/components/PositionList.vue'
-import TrackHistoryButton from '@/components/TrackHistoryButton.vue'
+import AssetCard from './AssetCard.vue'
+import BuddyList from './BuddyList.vue'
+import PositionSection from './PositionSection.vue'
 import { showToast } from 'vant'
-import { formatNumber } from '@/utils/format'
 
 interface Buddy {
   id: number
@@ -32,11 +31,9 @@ interface TrackRecord {
 }
 
 const loading = ref(false)
-const router = useRouter()
 const refreshing = ref(false)
 const positionStore = usePositionStore()
 const moneyStore = useMoneyStore()
-const sortOrder = ref<'default' | 'desc' | 'asc'>('default')
 const buddyList = ref<Buddy[]>([])
 const buddyLoading = ref(false)
 const allDataLoaded = ref(false) // 所有数据加载完成标识
@@ -108,56 +105,9 @@ const fetchBuddies = async (silent = false) => {
   }
 }
 
-// 计算伙伴持有金额（返回元）
-const getBuddyAsset = (buddy: Buddy): number => {
-  if (!buddy.heldUnit) return 0
-  // 份额单价（元/份额）= 总资产 / 100000
-  const unitPriceInYuan = totalAssets.value / 100000
-  // 持有金额（元）= 持有份额 × 份额单价
-  return buddy.heldUnit * unitPriceInYuan
-}
-
-// 计算伙伴持有盈亏值（返回元）
-const getBuddyProfitValue = (buddy: Buddy): number => {
-  const holdingAmount = getBuddyAsset(buddy)
-  const buddyMoneyInYuan = buddy.money / 100
-  // 盈亏 = 持有金额 - 投入本金
-  return holdingAmount - buddyMoneyInYuan
-}
-
-// 计算伙伴持有盈亏率（返回百分比）
-const getBuddyProfitRate = (buddy: Buddy): number => {
-  if (!buddy.money || buddy.money === 0) return 0
-  const profitValue = getBuddyProfitValue(buddy)
-  const buddyMoneyInYuan = buddy.money / 100
-  return (profitValue / buddyMoneyInYuan) * 100
-}
-
 // 过滤出有份额的伙伴
 const activeBuddies = computed(() => {
   return buddyList.value.filter(buddy => (buddy.heldUnit || 0) > 0)
-})
-
-// 计算盈亏金额
-const getProfitAmount = (position: any): number => {
-  if (position.currentPrice === undefined) return 0
-  return (position.currentPrice - position.cost) * position.quantity
-}
-
-// 排序后的持仓列表
-const sortedPositionList = computed(() => {
-  const list = [...positionStore.positionList]
-  
-  if (sortOrder.value === 'desc') {
-    // 降序：盈亏从大到小
-    return list.sort((a, b) => getProfitAmount(b) - getProfitAmount(a))
-  } else if (sortOrder.value === 'asc') {
-    // 升序：盈亏从小到大
-    return list.sort((a, b) => getProfitAmount(a) - getProfitAmount(b))
-  }
-  
-  // 默认顺序
-  return list
 })
 
 // 计算总市值
@@ -314,14 +264,6 @@ const todayProfitRate = computed(() => {
   return (todayProfit.value / yesterdayTotalValue) * 100
 })
 
-// 格式化金额显示（整数不显示小数）
-const formatAmount = (amount: number): string => {
-  if (Number.isInteger(amount)) {
-    return amount.toString()
-  }
-  return formatNumber(amount, 2).toString()
-}
-
 // 计算总资产（可用资金 + 总市值）
 const totalAssets = computed(() => {
   if (!moneyStore.moneyData) return 0
@@ -356,17 +298,6 @@ const fetchPositions = async () => {
   }
 }
 
-// 切换排序
-const toggleSort = () => {
-  if (sortOrder.value === 'default') {
-    sortOrder.value = 'desc' // 第一次点击：降序（从大到小）
-  } else if (sortOrder.value === 'desc') {
-    sortOrder.value = 'asc' // 第二次点击：升序（从小到大）
-  } else {
-    sortOrder.value = 'default' // 第三次点击：恢复默认
-  }
-}
-
 // 下拉刷新
 const onRefresh = async () => {
   try {
@@ -385,10 +316,6 @@ const onRefresh = async () => {
   }
 }
 
-const goToWatchlist = () => {
-  router.push('/app/watchlist')
-}
-
 onMounted(async () => {
   // 等待所有数据加载完成
   await Promise.all([
@@ -404,113 +331,28 @@ onMounted(async () => {
 
 <template>
   <div class="home-page">
-    <div class="top-card" @click="goToWatchlist">
-      <div v-if="loading" class="loading">
-        <van-loading size="24px" color="#ffffff" />
-      </div>
-      <div v-else class="asset-info">
-        <div class="label">总资产</div>
-        <div class="amount">¥{{ formatNumber(totalAssets, 2) }}</div>
-        
-        <div class="asset-detail">
-          <div class="detail-item">
-            <span class="detail-label">今日收益</span>
-            <span 
-              v-if="!showTradingData"
-              class="detail-value"
-            >
-              -
-            </span>
-            <span 
-              v-else
-              class="detail-value"
-              :class="{
-                'profit-up': todayProfit > 0,
-                'profit-down': todayProfit < 0
-              }"
-            >
-              {{ todayProfit > 0 ? '+' : '' }}{{ formatAmount(todayProfit) }}<span class="profit-rate">({{ todayProfitRate > 0 ? '+' : '' }}{{ formatNumber(todayProfitRate, 2) }}%)</span>
-            </span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">总市值</span>
-            <span class="detail-value">{{ Math.round(totalMarketValue) }}</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">可用资金</span>
-            <span class="detail-value">{{ moneyStore.moneyData ? formatNumber(moneyStore.moneyData.money, 2) : '0.00' }}</span>
-          </div>
-        </div>
-      </div>
-    </div>
+    <AssetCard
+      :loading="loading"
+      :total-assets="totalAssets"
+      :today-profit="todayProfit"
+      :today-profit-rate="todayProfitRate"
+      :total-market-value="totalMarketValue"
+      :available-money="moneyStore.moneyData?.money || 0"
+      :show-trading-data="showTradingData"
+    />
     
     <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
-      <!-- 伙伴列表 -->
-      <div v-if="activeBuddies.length > 0 && (!buddyLoading || refreshing)" class="buddy-section">
-        <div class="buddy-list">
-          <div 
-            v-for="buddy in activeBuddies" 
-            :key="buddy.id" 
-            class="buddy-item"
-          >
-            <div class="buddy-avatar">
-              <img v-if="buddy.avatar" :src="buddy.avatar" alt="头像" />
-              <van-icon v-else name="user-o" />
-            </div>
-            <div class="buddy-info">
-              <div class="buddy-name">{{ buddy.name }}</div>
-               <div class="buddy-asset-row">
-                 <div class="buddy-asset">
-                   持有金额:
-                   <span v-if="allDataLoaded">
-                     ¥{{ formatNumber(getBuddyAsset(buddy), 2) }}
-                     <span 
-                      class="buddy-profit-value"
-                      :class="{
-                        'profit-up': getBuddyProfitValue(buddy) > 0,
-                        'profit-down': getBuddyProfitValue(buddy) < 0
-                      }"
-                    >
-                      {{ getBuddyProfitValue(buddy) >= 0 ? '+' : '' }}¥{{ formatNumber(getBuddyProfitValue(buddy), 2) }}({{ getBuddyProfitValue(buddy) >= 0 ? '+' : '' }}{{ getBuddyProfitRate(buddy).toFixed(2) }}%)
-                    </span>
-                   </span>
-                   <span v-else class="loading-text">计算中...</span>
-                 </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <BuddyList
+        :buddy-list="activeBuddies"
+        :buddy-loading="buddyLoading"
+        :refreshing="refreshing"
+        :all-data-loaded="allDataLoaded"
+        :total-assets="totalAssets"
+      />
       
-      <!-- 持仓列表 -->
-      <div class="position-section">
-        <div class="section-header">
-          <div class="section-title" @click="toggleSort">
-            持仓
-            <span class="sort-icon" :class="sortOrder">
-              <van-icon v-if="sortOrder === 'desc'" name="arrow-down" />
-              <van-icon v-else-if="sortOrder === 'asc'" name="arrow-up" />
-              <van-icon v-else name="exchange" />
-            </span>
-          </div>
-          <TrackHistoryButton />
-        </div>
-        
-        <div v-if="positionStore.loading && !refreshing" class="loading">
-          <van-loading size="24px" />
-          <span>加载中...</span>
-        </div>
-        
-        <div v-else-if="positionStore.positionList.length === 0 && !positionStore.loading" class="empty">
-          <p>暂无持仓数据</p>
-        </div>
-        
-        <PositionList 
-          v-else-if="positionStore.positionList.length > 0"
-          :position-list="sortedPositionList"
-          :show-reduce-button="false"
-        />
-      </div>
+      <PositionSection
+        :refreshing="refreshing"
+      />
     </van-pull-refresh>
   </div>
 </template>
@@ -524,246 +366,8 @@ onMounted(async () => {
   background: linear-gradient(to bottom, #1989fa 0px, #ffffff 200px);
 }
 
-.top-card {
-  width: 100%;
-  padding: 24px 16px;
-  // iOS PWA 适配：为顶部状态栏预留空间，让渐变背景延伸到状态栏
-  padding-top: max(24px, calc(24px + env(safe-area-inset-top)));
-  min-height: 180px;
-  background-image: linear-gradient(to bottom, #1989fa, #0291fc, #0098fe, #00a0ff, #00a7ff, #00b0ff, #00b9ff, #00c1fe, #00ccf9, #00d6ea, #00ded5, #00e4ba);
-  cursor: pointer;
-}
-
-.loading {
-  display: flex;
-  justify-content: center;
-  padding: 20px 0;
-}
-
-.asset-info {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-}
-
-.label {
-  font-size: 14px;
-  color: #ffffff;
-  font-weight: 500;
-}
-
-.amount {
-  font-size: 36px;
-  font-weight: 700;
-  color: #ffffff;
-}
-
-.asset-detail {
-  display: flex;
-  gap: 24px;
-  margin-top: 4px;
-}
-
-.detail-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.detail-label {
-  font-size: 12px;
-  color: #ffffff;
-}
-
-.detail-value {
-  display: flex;
-  align-items: center;
-  font-size: 16px;
-  font-weight: 600;
-  color: #ffffff;
-  
-  &.profit-up {
-    color: #ffebee;
-  }
-  
-  &.profit-down {
-    color: #e8f5e9;
-  }
-}
-
-.profit-rate {
-  font-size: 14px;
-}
-
 .van-pull-refresh {
   min-height: calc(100vh - 180px);
-}
-
-.buddy-section {
-  padding-top: 16px;
-}
-
-.buddy-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin: 0 16px;
-}
-
-.buddy-item {
-  display: flex;
-  align-items: center;
-  padding: 16px;
-  background-color: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s;
-  
-  &:active {
-    transform: scale(0.98);
-  }
-}
-
-.buddy-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background-color: #f3f4f6;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  margin-right: 12px;
-  flex-shrink: 0;
-  
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-  
-  .van-icon {
-    font-size: 24px;
-    color: #9ca3af;
-  }
-}
-
-.buddy-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.buddy-name {
-  font-size: 16px;
-  font-weight: 600;
-  color: #111827;
-  margin-bottom: 6px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.buddy-asset-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.buddy-asset {
-  font-size: 14px;
-  color: #6b7280;
-  
-  .loading-text {
-    color: #9ca3af;
-  }
-}
-
-.buddy-profit-value {
-  font-weight: 500;
-  margin-left: 5px;
-  &.profit-up {
-    color: #ef4444; // 盈利显示红色
-  }
-  
-  &.profit-down {
-    color: #10b981; // 亏损显示绿色
-  }
-}
-
-.buddy-profit {
-  font-size: 14px;
-  font-weight: 500;
-  
-  &.profit-up {
-    color: #ef4444;
-  }
-  
-  &.profit-down {
-    color: #10b981;
-  }
-  
-  &.loading-text {
-    color: #9ca3af;
-    font-weight: 400;
-  }
-}
-
-.position-section {
-  margin: 16px 16px 6px 16px;
-  padding: 16px;
-  background-color: #f9fafb;
-  border-radius: 8px;
-  min-height: 224px;
-}
-
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.section-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 16px;
-  font-weight: 600;
-  color: #111827;
-  margin: 0;
-  cursor: pointer;
-  user-select: none;
-  
-  &:active {
-    opacity: 0.7;
-  }
-}
-
-.sort-icon {
-  display: inline-flex;
-  align-items: center;
-  font-size: 14px;
-  color: #9ca3af;
-  
-  &.desc {
-    color: #ef4444;
-  }
-  
-  &.asc {
-    color: #10b981;
-  }
-}
-
-.loading,
-.empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 20px;
-  color: #6b7280;
 }
 </style>
 

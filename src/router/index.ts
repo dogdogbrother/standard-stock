@@ -4,7 +4,7 @@ const LOGIN_COOKIE_KEY = 'login'
 const LOGIN_COOKIE_VALUE = '19910415'
 const WHITE_LIST = ['/', '/login']
 
-const Home = () => import('../views/Home.vue')
+const Home = () => import('../views/home/index.vue')
 const Login = () => import('../views/Login.vue')
 const AppLayout = () => import('../views/AppLayout.vue')
 const Watchlist = () => import('../views/watchlist/index.vue')
