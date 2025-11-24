@@ -111,7 +111,9 @@ onMounted(() => {
 
 <style scoped lang="less">
 .buddy-page {
-  min-height: 100%;
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 16px;
   background-color: #f5f5f5;
   // iOS PWA 适配：为顶部状态栏预留空间

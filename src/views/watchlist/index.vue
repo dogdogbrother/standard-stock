@@ -91,10 +91,10 @@ const convertInvtToMarket = (invt: string): string => {
 }
 
 // 获取股票详情并合并 watchlist 数据
-const fetchStockDetails = async () => {
+const fetchStockDetails = async (isRefresh = false) => {
   try {
     // 先获取 watchlist 基本数据（不包含 tracks 和 dividend）
-    await watchlistStore.fetchWatchlistBasic()
+    await watchlistStore.fetchWatchlistBasic(isRefresh)
     
     const watchlistData = watchlistStore.watchlistData
     if (!watchlistData || watchlistData.length === 0) {
@@ -214,7 +214,7 @@ const loadTracksAndDividends = async () => {
 // 下拉刷新
 const onRefresh = async () => {
   refreshing.value = true
-  await fetchStockDetails()
+  await fetchStockDetails(true) // isRefresh = true，不触发 loading 状态
   refreshing.value = false
   // 重置排序状态
   sortOrder.value = 'default'
@@ -269,7 +269,10 @@ onMounted(async () => {
   <div class="watchlist-page">
     <SearchBar />
     
-    <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
+    <van-pull-refresh 
+      v-model="refreshing" 
+      @refresh="onRefresh"
+    >
       <div v-if="watchlistStore.loading || !initialLoaded" class="loading-state">
         <van-loading size="24px" />
         <span>加载中...</span>
@@ -372,7 +375,7 @@ onMounted(async () => {
 
 <style scoped lang="less">
 .watchlist-page {
-  min-height: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
   background-color: #ffffff;
@@ -384,6 +387,11 @@ onMounted(async () => {
 :deep(.van-pull-refresh) {
   flex: 1;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  min-height: 0; // 关键：确保 flex 子元素能正确计算高度
+}
+
+:deep(.van-pull-refresh__track) {
   padding: 10px;
   padding-bottom: 20px; // 增加底部间距
 }
@@ -495,7 +503,7 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-bottom: 40px; // 列表底部间距
+  margin-bottom: 60px; // 列表底部间距
 }
 
 .stock-item {

@@ -332,10 +332,11 @@ const hasKeyword = computed(() => keyword.value.trim().length > 0)
 
 <style scoped lang="less">
 .search-page {
-  min-height: 100vh;
+  height: 100%;
   background-color: #ffffff;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .search-header {
@@ -373,6 +374,8 @@ const hasKeyword = computed(() => keyword.value.trim().length > 0)
   padding: 0 16px 16px;
   background-color: #ffffff;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  min-height: 0; // 关键：确保 flex 子元素能正确计算高度
 }
 
 .loading-state,

@@ -44,11 +44,26 @@ const handlePositionChanged = () => {
 
 <style scoped lang="less">
 .profile-page {
-  padding: 16px;
+  padding-bottom: 65px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
   background-color: #ffffff;
-  min-height: 100%;
+  overflow: hidden;
   // iOS PWA 适配：为顶部状态栏预留空间
-  padding-top: max(16px, calc(16px + env(safe-area-inset-top)));
+  padding-top: env(safe-area-inset-top);
+}
+
+:deep(.van-pull-refresh) {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  min-height: 0;
+}
+
+:deep(.van-pull-refresh__track) {
+  padding: 16px;
+  padding-bottom: 20px;
 }
 </style>
 

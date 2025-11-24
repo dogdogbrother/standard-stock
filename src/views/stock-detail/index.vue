@@ -439,7 +439,9 @@ onMounted(async () => {
 
 <style scoped lang="less">
 .stock-detail-page {
-  min-height: 100vh;
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   background-color: #f5f5f5;
   display: flex;
   flex-direction: column;

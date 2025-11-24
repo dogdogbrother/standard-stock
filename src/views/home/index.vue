@@ -359,15 +359,24 @@ onMounted(async () => {
 
 <style scoped lang="less">
 .home-page {
-  min-height: 100vh;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
   background-color: #ffffff;
-  padding-bottom: 10px;
+  overflow: hidden;
   // iOS PWA 适配：让背景色延伸到状态栏下方
   background: linear-gradient(to bottom, #1989fa 0px, #ffffff 200px);
 }
 
-.van-pull-refresh {
-  min-height: calc(100vh - 180px);
+:deep(.van-pull-refresh) {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  min-height: 0;
+}
+
+:deep(.van-pull-refresh__track) {
+  padding-bottom: 20px;
 }
 </style>
 

@@ -21,8 +21,7 @@
 
 .app-content {
   flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden; // 让子页面自己决定是否滚动
   // 禁止橡皮筋效果
   overscroll-behavior: none;
 }
