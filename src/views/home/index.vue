@@ -30,7 +30,6 @@ interface TrackRecord {
   created_at: string
 }
 
-const loading = ref(false)
 const refreshing = ref(false)
 const positionStore = usePositionStore()
 const moneyStore = useMoneyStore()
@@ -272,8 +271,6 @@ const totalAssets = computed(() => {
 
 // 获取资金数据
 const fetchMoney = async () => {
-  loading.value = true
-  
   try {
     // 如果已有缓存数据，不重复请求
     if (moneyStore.moneyData) {
@@ -281,8 +278,6 @@ const fetchMoney = async () => {
     }
     await moneyStore.fetchMoney()
   } catch (err) {
-  } finally {
-    loading.value = false
   }
 }
 
@@ -324,6 +319,12 @@ onMounted(async () => {
     fetchBuddies(),
     fetchTodayTracks()
   ])
+  
+  // 额外等待 store 的 loading 完成（确保所有实时数据已加载）
+  while (positionStore.loading || moneyStore.loading) {
+    await new Promise(resolve => setTimeout(resolve, 50))
+  }
+  
   // 所有数据加载完成
   allDataLoaded.value = true
 })
@@ -332,7 +333,7 @@ onMounted(async () => {
 <template>
   <div class="home-page">
     <AssetCard
-      :loading="loading"
+      :loading="!allDataLoaded"
       :total-assets="totalAssets"
       :today-profit="todayProfit"
       :today-profit-rate="todayProfitRate"

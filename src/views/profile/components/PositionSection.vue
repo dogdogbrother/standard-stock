@@ -6,8 +6,9 @@ import PositionList from '@/components/PositionList.vue'
 import TrackHistoryButton from '@/components/TrackHistoryButton.vue'
 import AddPositionDialog from './AddPositionDialog.vue'
 
-defineProps<{
+const props = defineProps<{
   refreshing?: boolean
+  allDataLoaded?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -92,10 +93,11 @@ const refresh = async () => {
   await fetchPositions(true, true) // 强制刷新，静默模式
 }
 
-onMounted(() => {
-  // 只在缓存为空时才请求
-  fetchPositions(false)
-})
+// onMounted 不再需要加载数据，由父组件统一加载
+// onMounted(() => {
+//   // 只在缓存为空时才请求
+//   fetchPositions(false)
+// })
 
 defineExpose({
   refresh
@@ -126,20 +128,23 @@ defineExpose({
       </van-button>
     </div>
     
-    <div v-if="positionLoading && !refreshing" class="loading">
-      <van-loading size="24px" />
-      <span>加载中...</span>
-    </div>
-    
-    <div v-else-if="positionList.length === 0 && !positionLoading" class="empty">
-      <p>暂无持股数据</p>
-    </div>
-    
-    <PositionList 
-      v-else-if="positionList.length > 0"
-      :position-list="sortedPositionList"
-      @reduce-success="handleReduceSuccess"
-    />
+    <!-- 所有数据加载完成后才显示内容 -->
+    <template v-if="allDataLoaded">
+      <div v-if="positionLoading && !refreshing" class="loading">
+        <van-loading size="24px" />
+        <span>加载中...</span>
+      </div>
+      
+      <div v-else-if="positionList.length === 0 && !positionLoading" class="empty">
+        <p>暂无持股数据</p>
+      </div>
+      
+      <PositionList 
+        v-else-if="positionList.length > 0"
+        :position-list="sortedPositionList"
+        @reduce-success="handleReduceSuccess"
+      />
+    </template>
     
     <!-- 录入持股对话框 -->
     <AddPositionDialog 

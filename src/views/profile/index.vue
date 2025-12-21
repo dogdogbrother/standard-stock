@@ -1,11 +1,31 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import MoneySection from './components/MoneySection.vue'
 import PositionSection from './components/PositionSection.vue'
+import { useMoneyStore } from '@/stores/money'
+import { usePositionStore } from '@/stores/position'
 
 const moneyRef = ref<any>(null)
 const positionRef = ref<any>(null)
 const refreshing = ref(false)
+const allDataLoaded = ref(false) // 所有数据加载完成标识
+
+const moneyStore = useMoneyStore()
+const positionStore = usePositionStore()
+
+// 初始化加载（同时加载 money 和 position）
+const initializeData = async () => {
+  try {
+    await Promise.all([
+      moneyStore.fetchMoney(),
+      positionStore.fetchPositions(true) // silent = true，不显示 store 的 loading
+    ])
+  } catch (err) {
+    console.error('初始化数据失败:', err)
+  } finally {
+    allDataLoaded.value = true
+  }
+}
 
 // 下拉刷新
 const onRefresh = async () => {
@@ -26,16 +46,28 @@ const onRefresh = async () => {
 const handlePositionChanged = () => {
   moneyRef.value?.refresh()
 }
+
+onMounted(async () => {
+  // 只在缓存为空时才初始化
+  if (!moneyStore.moneyData || positionStore.positionList.length === 0) {
+    await initializeData()
+  }
+})
 </script>
 
 <template>
   <div class="profile-page">
     <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
-      <MoneySection ref="moneyRef" :refreshing="refreshing" />
+      <MoneySection 
+        ref="moneyRef" 
+        :refreshing="refreshing"
+        :all-data-loaded="allDataLoaded"
+      />
       
       <PositionSection 
         ref="positionRef" 
         :refreshing="refreshing"
+        :all-data-loaded="allDataLoaded"
         @position-changed="handlePositionChanged"
       />
     </van-pull-refresh>

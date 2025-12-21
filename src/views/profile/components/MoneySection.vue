@@ -6,8 +6,9 @@ import { usePositionStore } from '@/stores/position'
 import { useMoneyStore } from '@/stores/money'
 import { formatNumber } from '@/utils/format'
 
-defineProps<{
+const props = defineProps<{
   refreshing?: boolean
+  allDataLoaded?: boolean
 }>()
 
 const showEditDialog = ref(false)
@@ -85,12 +86,13 @@ const goHome = () => {
   router.push('/')
 }
 
-onMounted(async () => {
-  // 只在缓存为空时才请求
-  if (!moneyStore.moneyData) {
-    await moneyStore.fetchMoney()
-  }
-})
+// onMounted 不再需要加载数据，由父组件统一加载
+// onMounted(async () => {
+//   // 只在缓存为空时才请求
+//   if (!moneyStore.moneyData) {
+//     await moneyStore.fetchMoney()
+//   }
+// })
 
 defineExpose({
   refresh
@@ -103,7 +105,7 @@ defineExpose({
       <h3>资金信息</h3>
     </div>
     
-    <div v-if="moneyStore.loading && !refreshing" class="loading">
+    <div v-if="!allDataLoaded && !refreshing" class="loading">
       <van-loading size="24px" />
       <span>加载中...</span>
     </div>
@@ -113,7 +115,7 @@ defineExpose({
       <p>{{ moneyStore.error }}</p>
     </div>
     
-    <div v-else-if="moneyStore.moneyData" class="money-info">
+    <div v-else-if="moneyStore.moneyData && allDataLoaded" class="money-info">
       <!-- 总资产 -->
       <div class="total-assets">
         {{ formatNumber(totalAssets, 2) }}
