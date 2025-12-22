@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed } from 'vue'
 import { showToast } from 'vant'
 import { usePositionStore } from '@/stores/position'
 import PositionList from '@/components/PositionList.vue'
 import TrackHistoryButton from '@/components/TrackHistoryButton.vue'
 import AddPositionDialog from './AddPositionDialog.vue'
 
-const props = defineProps<{
+defineProps<{
   refreshing?: boolean
   allDataLoaded?: boolean
 }>()

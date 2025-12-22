@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { usePositionStore } from '@/stores/position'
 import { useMoneyStore } from '@/stores/money'
 import { formatNumber } from '@/utils/format'
 
-const props = defineProps<{
+defineProps<{
   refreshing?: boolean
   allDataLoaded?: boolean
 }>()
