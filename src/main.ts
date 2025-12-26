@@ -15,18 +15,18 @@ if (import.meta.env.DEV) {
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
   
   if (isMobile) {
-    import('vconsole').then(module => {
-      const VConsole = module.default
-      new VConsole({
-        theme: 'dark', // 主题：dark 或 light
-        defaultPlugins: ['system', 'network', 'element', 'storage'], // 启用的插件
-        maxLogNumber: 1000 // 最大日志数量
-      })
-      console.log('📱 vConsole 已启用（移动端调试模式）')
-    })
+    
   }
 }
-
+import('vconsole').then(module => {
+  const VConsole = module.default
+  new VConsole({
+    theme: 'dark', // 主题：dark 或 light
+    defaultPlugins: ['system', 'network', 'element', 'storage'], // 启用的插件
+    maxLogNumber: 1000 // 最大日志数量
+  })
+  console.log('📱 vConsole 已启用（移动端调试模式）')
+})
 const app = createApp(App)
 const pinia = createPinia()
 
