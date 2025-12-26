@@ -21,6 +21,7 @@ VITE_SUPABASE_ANON_KEY=你的_ANON_KEY
 在部署平台（Vercel/Netlify 等）的环境变量中配置：
 
 ```env
+# Supabase Edge Function - 股票搜索 API
 VITE_STOCK_SEARCH_API=https://qixncbgvrkfjxopqqpiz.supabase.co/functions/v1/stock-search
 
 # Supabase Edge Function - 股票详情 API

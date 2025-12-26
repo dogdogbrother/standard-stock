@@ -199,12 +199,14 @@
 ## 数据库的表和字段
 
 - buddy 伙伴表
-  | 字段    | 含义 | 类型 |
-  | :---:   | :---: | 
-  | name    | 名称 | text |
-  | avatar  | 头像的url地址 | text |
+
+  | 字段  | 含义 | 类型 |
+  | :---:  | :---: | 
+  | name  | 名称 | text |
+  | avatar | 头像的url地址 | text |
   | money  | 金额(单位分) | int4 |
   | heldUnit | 持有的股票份额(保留小数点4位) | float4 |
+
   <!-- | heldUnitStatus | 持有份额状态(0=待确认,1=已确认) | int2 | -->
 
 - money 资产表
@@ -289,3 +291,12 @@
    - `update-used-money`: 工作日下午 3:01 更新 usedMoney（持仓市值）
    - `confirm-buddy-orders`: 工作日次日凌晨 00:01 确认前一天的待确认订单（heldUnitStatus = 0 → 1 或 2）
   
+
+
+  appConfig对象新增三个属性
+
+  | 字段    | 含义 | 类型 |
+  | :---:   | :---: | :---: |
+  | alert    | 是否展示弹窗 | bool |
+  | alertMsg    | 弹窗文字内容,如果需要换行,可以加入 `<br />` | text |
+  | alertFontSize    | 弹窗文字大小,默认18 | int |

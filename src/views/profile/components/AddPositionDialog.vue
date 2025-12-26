@@ -1,16 +1,12 @@
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue'
-import { supabase } from '@/lib/supabase'
-import { showToast, showConfirmDialog } from 'vant'
-import { useMoneyStore } from '@/stores/money'
+import { ref, watch } from 'vue'
+import { showToast } from 'vant'
 import { formatNumber } from '@/utils/format'
 
 const visible = defineModel<boolean>('visible', { default: false })
 const emit = defineEmits<{
   success: []
 }>()
-
-const moneyStore = useMoneyStore()
 
 const positionForm = ref({
   stock: '',
@@ -38,9 +34,6 @@ const searchResults = ref<any[]>([])
 const showSearchDropdown = ref(false)
 const selectedStockName = ref('')
 const selectedStockMarket = ref('')
-
-// 待确认的重复股票信息
-let pendingDuplicateInfo: any = null
 
 // 重置表单
 const resetForm = () => {
@@ -131,31 +124,8 @@ const selectStock = (stock: any) => {
   showSearchDropdown.value = false
 }
 
-// 检查股票是否重复
-const checkDuplicateStock = async (stockCode: string) => {
-  try {
-    const { data: existingData, error: queryError } = await supabase
-      .from('position')
-      .select('id, name, cost, quantity')
-      .eq('stock', stockCode)
-      .maybeSingle()
-    
-    if (queryError) throw queryError
-    
-    if (existingData) {
-      pendingDuplicateInfo = {
-        existing: existingData,
-        form: { ...positionForm.value },
-        stockName: selectedStockName.value
-      }
-      return true
-    }
-    
-    return false
-  } catch (err) {
-    return false
-  }
-}
+// 不再需要前端检查重复，由 Edge Function 统一处理
+// const checkDuplicateStock = async (stockCode: string) => { ... }
 
 // 录入持股的前置处理
 const beforeCloseDialog = async (action: string) => {
@@ -181,11 +151,6 @@ const beforeCloseDialog = async (action: string) => {
     if (quantityNum % 100 !== 0) {
       showToast('持股数量必须是100的倍数')
       return false
-    }
-    
-    const isDuplicate = await checkDuplicateStock(stock.trim())
-    if (isDuplicate) {
-      return true
     }
     
     // 如果没有选中股票（没有 market 或 name 信息），则从搜索结果中获取
@@ -215,109 +180,47 @@ const beforeCloseDialog = async (action: string) => {
   return true
 }
 
-// 更新资金信息（录入持股时减少可用资金，传入负值）
-const updateMoneyInfo = async (totalAmount: number) => {
-  try {
-    // 录入持股时需要减少可用资金，所以传入负值
-    await moneyStore.updateMoneyByAmount(-totalAmount)
-  } catch (err) {
-    throw err
-  }
-}
-
-// 录入持股（仅用于新增股票）
+// 录入持股（调用 Edge Function）
 const addPosition = async () => {
   const { stock, cost, quantity } = positionForm.value
   
   try {
-    // cost 保留3位小数(元)，转为1位小数(分): 11.678元 → 1167.8分
-    const costInCents = Math.round(parseFloat(cost) * 1000) / 10
-    const costValue = parseFloat(cost)
-    const quantityValue = parseFloat(quantity)
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
     
-    const { error: insertError } = await supabase
-      .from('position')
-      .insert([{
+    const response = await fetch('https://qixncbgvrkfjxopqqpiz.supabase.co/functions/v1/add-position', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${supabaseAnonKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
         stock: stock.trim(),
         invt: selectedStockMarket.value || 'sh',
         name: selectedStockName.value || '',
-        cost: costInCents,
-        quantity: quantityValue
-      }])
-    
-    if (insertError) throw insertError
-    
-    const totalAmount = costValue * quantityValue
-    
-    // 先插入 track 记录（加仓）
-    await insertTrackRecord({
-      stock: stock.trim(),
-      invt: selectedStockMarket.value || 'sh',
-      name: selectedStockName.value || '',
-      money: Math.round(totalAmount * 100), // 单位：分（整数）
-      price: Math.round(costValue * 1000) / 10, // 单位：分（1位小数）
-      num: Math.round(quantityValue), // 确保是整数
-      track_type: 'increase'
+        cost: parseFloat(cost),
+        quantity: parseFloat(quantity)
+      })
     })
     
-    // 再更新资金信息
-    await updateMoneyInfo(totalAmount)
+    const result = await response.json()
     
-    await addToWatchlistIfNotExists(stock.trim(), selectedStockMarket.value)
-    
-    showToast('录入成功')
-    emit('success')
-    return true
-  } catch (err) {
-    showToast('录入失败')
-    return false
-  }
-}
-
-// 插入 track 记录
-const insertTrackRecord = async (trackData: {
-  stock: string
-  invt: string
-  name: string
-  money: number // 单位：分（整数）
-  price: number // 单位：分（整数）
-  num: number // 股票数量（整数）
-  track_type: 'increase' | 'reduce'
-}) => {
-  try {
-    const { error: trackError } = await supabase
-      .from('track')
-      .insert([trackData])
-    
-    if (trackError) {
-      throw trackError
-    }
-  } catch (err) {
-    throw err
-  }
-}
-
-// 检查股票是否在 watchlist 中，如果不存在则添加
-const addToWatchlistIfNotExists = async (stockCode: string, stockMarket: string) => {
-  try {
-    const { data: existingWatch } = await supabase
-      .from('watchlist')
-      .select('id')
-      .eq('stock', stockCode)
-      .maybeSingle()
-    
-    if (!existingWatch) {
-      const { error: insertError } = await supabase
-        .from('watchlist')
-        .insert([{
-          stock: stockCode,
-          invt: stockMarket || 'sh'
-        }])
-      
-      if (insertError) {
+    if (result.success) {
+      // 如果是加仓，显示新的成本价
+      if (result.isUpdate) {
+        showToast(`${result.message}，新成本: ${formatNumber(result.avgCost, 2)}元`)
+      } else {
+        showToast(result.message)
       }
+      emit('success')
+      return true
+    } else {
+      showToast(result.error || '录入失败')
+      return false
     }
   } catch (err) {
+    console.error('录入持股失败:', err)
+    showToast('录入失败，请稍后重试')
+    return false
   }
 }
 
@@ -325,70 +228,6 @@ const addToWatchlistIfNotExists = async (stockCode: string, stockMarket: string)
 watch(visible, (newVal) => {
   if (newVal) {
     resetForm()
-  }
-})
-
-// 监听弹窗关闭，处理重复股票确认
-watch(visible, async (newVal, oldVal) => {
-  if (oldVal === true && newVal === false && pendingDuplicateInfo) {
-    await nextTick()
-    
-    const { existing, form, stockName } = pendingDuplicateInfo
-    const oldCost = existing.cost / 100
-    const oldQuantity = existing.quantity
-    const newCost = parseFloat(form.cost)
-    const newQuantity = parseFloat(form.quantity)
-    
-    const totalCost = (oldCost * oldQuantity) + (newCost * newQuantity)
-    const totalQuantity = oldQuantity + newQuantity
-    const avgCost = totalCost / totalQuantity
-    
-    try {
-      await showConfirmDialog({
-        title: '股票已存在',
-        message: `成本价格已变动 (${formatNumber(avgCost, 3)}元)`,
-        confirmButtonText: '确认',
-        cancelButtonText: '取消'
-      })
-      
-      // avgCost 保留3位小数(元)，转为1位小数(分): 11.678元 → 1167.8分
-      const avgCostInCents = Math.round(avgCost * 1000) / 10
-      const { error: updateError } = await supabase
-        .from('position')
-        .update({
-          cost: avgCostInCents,
-          quantity: totalQuantity,
-          name: stockName || existing.name
-        })
-        .eq('id', existing.id)
-      
-      if (updateError) throw updateError
-      
-      const newAddAmount = newCost * newQuantity
-      
-      // 先插入 track 记录（加仓）
-      await insertTrackRecord({
-        stock: form.stock.trim(),
-        invt: selectedStockMarket.value || 'sh',
-        name: stockName || existing.name,
-        money: Math.round(newAddAmount * 100), // 单位：分（整数）
-        price: Math.round(newCost * 1000) / 10, // 单位：分（1位小数）
-        num: Math.round(newQuantity), // 确保是整数
-        track_type: 'increase'
-      })
-      
-      // 再更新资金信息（只需要计算新增的金额）
-      await updateMoneyInfo(newAddAmount)
-      
-      showToast('更新成功')
-      emit('success')
-    } catch (err) {
-      if (err !== 'cancel') {
-        showToast('更新失败')
-      }
-    } finally {
-      pendingDuplicateInfo = null
-    }
   }
 })
 </script>

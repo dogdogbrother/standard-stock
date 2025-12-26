@@ -1,0 +1,90 @@
+### Edge Function: add-position 测试文件
+### 使用 VSCode REST Client 扩展运行这些请求
+
+@baseUrl = http://localhost:54321/functions/v1/add-position
+# @baseUrl = https://qixncbgvrkfjxopqqpiz.supabase.co/functions/v1/add-position
+
+@anonKey = YOUR_ANON_KEY_HERE
+
+### 1. 测试新增持股（平安银行）
+POST {{baseUrl}}
+Content-Type: application/json
+Authorization: Bearer {{anonKey}}
+
+{
+  "stock": "000001",
+  "invt": "sz",
+  "name": "平安银行",
+  "cost": 10.50,
+  "quantity": 100
+}
+
+### 2. 测试加仓（再次添加平安银行）
+POST {{baseUrl}}
+Content-Type: application/json
+Authorization: Bearer {{anonKey}}
+
+{
+  "stock": "000001",
+  "invt": "sz",
+  "name": "平安银行",
+  "cost": 11.00,
+  "quantity": 200
+}
+
+### 3. 测试新增持股（贵州茅台）
+POST {{baseUrl}}
+Content-Type: application/json
+Authorization: Bearer {{anonKey}}
+
+{
+  "stock": "600519",
+  "invt": "sh",
+  "name": "贵州茅台",
+  "cost": 1680.50,
+  "quantity": 100
+}
+
+### 4. 测试错误：股票代码为空
+POST {{baseUrl}}
+Content-Type: application/json
+Authorization: Bearer {{anonKey}}
+
+{
+  "stock": "",
+  "invt": "sz",
+  "name": "测试",
+  "cost": 10.50,
+  "quantity": 100
+}
+
+### 5. 测试错误：持股数量不是100的倍数
+POST {{baseUrl}}
+Content-Type: application/json
+Authorization: Bearer {{anonKey}}
+
+{
+  "stock": "000002",
+  "invt": "sz",
+  "name": "万科A",
+  "cost": 8.50,
+  "quantity": 150
+}
+
+### 6. 测试错误：买入价为负数
+POST {{baseUrl}}
+Content-Type: application/json
+Authorization: Bearer {{anonKey}}
+
+{
+  "stock": "000002",
+  "invt": "sz",
+  "name": "万科A",
+  "cost": -10.50,
+  "quantity": 100
+}
+
+### 7. 测试 CORS
+OPTIONS {{baseUrl}}
+Origin: http://localhost:5173
+
