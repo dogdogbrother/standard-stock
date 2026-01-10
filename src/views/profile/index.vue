@@ -51,6 +51,9 @@ onMounted(async () => {
   // 只在缓存为空时才初始化
   if (!moneyStore.moneyData || positionStore.positionList.length === 0) {
     await initializeData()
+  } else {
+    // 有缓存时也要标记为已加载，否则页面会一直显示 loading
+    allDataLoaded.value = true
   }
 })
 </script>
