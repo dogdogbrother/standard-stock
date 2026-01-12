@@ -28,6 +28,8 @@ const sortOrder = ref<'default' | 'asc' | 'desc'>('default') // default: 默认,
 const initialLoaded = ref(false) // 是否已完成首次加载
 const stockList = ref<StockDetail[]>([]) // 页面级的股票详情列表
 const originalStockList = ref<StockDetail[]>([]) // 缓存原始列表（用于排序恢复）
+const showSortSheet = ref(false) // 控制排序选择面板显示
+const sortType = ref<'change' | 'track' | 'dividend'>('change') // 排序类型：change=涨幅, track=操作, dividend=股息
 
 // 格式化操作日期为 MM-DD
 const formatTrackDate = (dateStr: string): string => {
@@ -229,6 +231,32 @@ const isInPosition = (stock: StockDetail): boolean => {
   return positionStore.isInPositionCache(stock.code, stock.invt)
 }
 
+// 打开排序选择面板
+const openSortSheet = () => {
+  showSortSheet.value = true
+}
+
+// 选择排序类型
+const onSelectSortType = (action: any) => {
+  const previousType = sortType.value
+  
+  if (action.name === '涨幅') {
+    sortType.value = 'change'
+  } else if (action.name === '操作') {
+    sortType.value = 'track'
+  } else if (action.name === '股息') {
+    sortType.value = 'dividend'
+  }
+  
+  // 如果切换了排序类型，重置排序状态
+  if (previousType !== sortType.value) {
+    sortOrder.value = 'default'
+  }
+  
+  // 执行排序
+  toggleSort()
+}
+
 // 切换排序
 const toggleSort = () => {
   if (sortOrder.value === 'default') {
@@ -242,11 +270,47 @@ const toggleSort = () => {
   // 在页面级进行排序
   if (sortOrder.value === 'default') {
     stockList.value = [...originalStockList.value]
-  } else if (sortOrder.value === 'desc') {
-    stockList.value.sort((a, b) => b.changePercent - a.changePercent)
-  } else {
-    stockList.value.sort((a, b) => a.changePercent - b.changePercent)
+  } else if (sortType.value === 'change') {
+    // 按涨幅排序
+    if (sortOrder.value === 'desc') {
+      stockList.value.sort((a, b) => b.changePercent - a.changePercent)
+    } else {
+      stockList.value.sort((a, b) => a.changePercent - b.changePercent)
+    }
+  } else if (sortType.value === 'track') {
+    // 按操作涨跌幅排序（优先 lastTrack，其次 watchlistPrice）
+    if (sortOrder.value === 'desc') {
+      stockList.value.sort((a, b) => {
+        const aChange = a.lastTrack ? calculateTrackChange(a) : calculateWatchlistChange(a)
+        const bChange = b.lastTrack ? calculateTrackChange(b) : calculateWatchlistChange(b)
+        return bChange - aChange
+      })
+    } else {
+      stockList.value.sort((a, b) => {
+        const aChange = a.lastTrack ? calculateTrackChange(a) : calculateWatchlistChange(a)
+        const bChange = b.lastTrack ? calculateTrackChange(b) : calculateWatchlistChange(b)
+        return aChange - bChange
+      })
+    }
+  } else if (sortType.value === 'dividend') {
+    // 按股息排序
+    if (sortOrder.value === 'desc') {
+      stockList.value.sort((a, b) => {
+        const aDividend = a.dividend?.num ?? 0
+        const bDividend = b.dividend?.num ?? 0
+        return bDividend - aDividend
+      })
+    } else {
+      stockList.value.sort((a, b) => {
+        const aDividend = a.dividend?.num ?? 0
+        const bDividend = b.dividend?.num ?? 0
+        return aDividend - bDividend
+      })
+    }
   }
+  
+  // 关闭面板
+  showSortSheet.value = false
 }
 
 onMounted(async () => {
@@ -287,9 +351,9 @@ onMounted(async () => {
         <div class="stock-header">
           <div class="header-name">名称/代码</div>
           <div class="header-price">最新</div>
-          <div class="header-change" @click="toggleSort">
-            <span>涨幅</span>
-            <span class="sort-icon" :class="sortOrder">
+          <div class="header-change">
+            <span @click="openSortSheet">{{ sortType === 'change' ? '涨幅' : sortType === 'track' ? '操作' : '股息' }}</span>
+            <span class="sort-icon" :class="sortOrder" @click="toggleSort">
               <van-icon v-if="sortOrder === 'desc'" name="arrow-down" />
               <van-icon v-else-if="sortOrder === 'asc'" name="arrow-up" />
               <van-icon v-else name="exchange" />
@@ -370,6 +434,14 @@ onMounted(async () => {
         <p>点击上方搜索框添加自选</p>
       </div>
     </van-pull-refresh>
+    
+    <!-- 排序选择面板 -->
+    <van-action-sheet 
+      v-model:show="showSortSheet" 
+      :actions="[{ name: '涨幅' }, { name: '操作' }, { name: '股息' }]"
+      close-on-click-action
+      @select="onSelectSortType"
+    />
   </div>
 </template>
 
@@ -464,7 +536,7 @@ onMounted(async () => {
 }
 
 .header-change {
-  width: 80px;
+  width: 88px;
   text-align: right;
   font-size: 14px;
   color: #9ca3af;
@@ -475,17 +547,19 @@ onMounted(async () => {
   gap: 4px;
   cursor: pointer;
   user-select: none;
-  
-  &:active {
+  *:active {
     opacity: 0.7;
+  }
+  span {
+    text-decoration: underline;
   }
 }
 
 .sort-icon {
   display: inline-flex;
   align-items: center;
-  font-size: 12px;
-  
+  font-size: 16px;
+  margin-left: 5px;
   &.desc {
     color: #3b82f6;
   }
@@ -602,7 +676,7 @@ onMounted(async () => {
 }
 
 .stock-change {
-  width: 80px;
+  width: 88px;
   text-align: right;
 }
 

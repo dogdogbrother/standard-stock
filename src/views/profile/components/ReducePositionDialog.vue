@@ -2,7 +2,6 @@
 import { ref } from 'vue'
 import { showToast } from 'vant'
 import { usePositionStore, type Position } from '@/stores/position'
-import { supabase } from '@/lib/supabase'
 import { formatNumber } from '@/utils/format'
 
 const visible = defineModel<boolean>('visible', { default: false })
@@ -94,164 +93,90 @@ const calculateNewCost = () => {
   reduceForm.value.newCost = Math.max(0, newCost)
 }
 
-// 插入 track 记录
-const insertTrackRecord = async (trackData: {
-  stock: string
-  invt: string
-  name: string
-  money: number // 单位：分（整数）
-  price: number // 单位：分（1位小数）
-  num: number // 股票数量（整数）
-  track_type: 'increase' | 'reduce'
-}) => {
-  try {
-    const { error: trackError } = await supabase
-      .from('track')
-      .insert([trackData])
+// 减仓对话框关闭前的处理
+const beforeCloseDialog = async (action: string) => {
+  if (action === 'confirm') {
+    const { currentQuantity, sellPrice, reduceQuantity } = reduceForm.value
     
-    if (trackError) {
-      throw trackError
+    if (!sellPrice) {
+      showToast('请输入卖出价格')
+      return false
     }
-  } catch (err) {
-    throw err
+    
+    const sellPriceNum = parseFloat(sellPrice)
+    
+    if (isNaN(sellPriceNum) || sellPriceNum <= 0) {
+      showToast('请输入有效的卖出价格')
+      return false
+    }
+    
+    if (!reduceQuantity) {
+      showToast('请输入减仓数量')
+      return false
+    }
+    
+    const reduceNum = parseFloat(reduceQuantity)
+    
+    if (isNaN(reduceNum) || reduceNum <= 0) {
+      showToast('请输入有效的数量')
+      return false
+    }
+    
+    if (reduceNum % 100 !== 0) {
+      showToast('减仓数量必须是100的倍数')
+      return false
+    }
+    
+    if (reduceNum > currentQuantity) {
+      showToast('减仓数量不能超过当前持股数')
+      return false
+    }
+    
+    const success = await reducePosition()
+    return success
   }
+  return true
 }
 
-// 更新资金信息（减仓时增加可用资金）
-const updateMoneyInfo = async (totalAmount: number) => {
+// 调用 Edge Function 减仓
+const reducePosition = async () => {
   try {
-    // 获取今天的开始和结束时间
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const todayISO = today.toISOString()
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
     
-    const tomorrow = new Date(today)
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    const tomorrowISO = tomorrow.toISOString()
-    
-    // 查找今天是否已有记录
-    const { data: todayMoney, error: todayError } = await supabase
-      .from('money')
-      .select('*')
-      .gte('created_at', todayISO)
-      .lt('created_at', tomorrowISO)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-    
-    if (todayError) throw todayError
-    
-    // 计算新的资金数据（金额单位：分）
-    const totalAmountInCents = Math.round(totalAmount * 100)
-    
-    if (todayMoney) {
-      // 今天已有记录，更新它（减仓增加可用资金，只更新money，usedMoney由定时任务更新）
-      const newMoney = todayMoney.money + totalAmountInCents
-      
-      const { error: updateError } = await supabase
-        .from('money')
-        .update({
-          money: newMoney
-        })
-        .eq('id', todayMoney.id)
-      
-      if (updateError) throw updateError
-    } else {
-      // 今天没有记录，获取最新记录并插入新记录
-      const { data: latestMoney, error: fetchError } = await supabase
-        .from('money')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single()
-      
-      if (fetchError) throw fetchError
-      
-      const newMoney = latestMoney.money + totalAmountInCents
-      
-      const { error: insertError } = await supabase
-        .from('money')
-        .insert({
-          money: newMoney
-        })
-      
-      if (insertError) throw insertError
-    }
-  } catch (err) {
-    throw err
-  }
-}
-
-// 确认减仓
-const confirmReduce = async () => {
-  const { positionId, stock, invt, stockName, currentQuantity, sellPrice, reduceQuantity } = reduceForm.value
-  
-  if (!sellPrice) {
-    showToast('请输入卖出价格')
-    return
-  }
-  
-  const sellPriceNum = parseFloat(sellPrice)
-  
-  if (isNaN(sellPriceNum) || sellPriceNum <= 0) {
-    showToast('请输入有效的卖出价格')
-    return
-  }
-  
-  if (!reduceQuantity) {
-    showToast('请输入减仓数量')
-    return
-  }
-  
-  const reduceNum = parseFloat(reduceQuantity)
-  
-  if (isNaN(reduceNum) || reduceNum <= 0) {
-    showToast('请输入有效的数量')
-    return
-  }
-  
-  if (reduceNum % 100 !== 0) {
-    showToast('减仓数量必须是100的倍数')
-    return
-  }
-  
-  if (reduceNum > currentQuantity) {
-    showToast('减仓数量不能超过当前持股数')
-    return
-  }
-  
-  try {
-    const newQuantity = currentQuantity - reduceNum
-    
-    // 先插入 track 记录（减仓）
-    await insertTrackRecord({
-      stock: stock,
-      invt: invt,
-      name: stockName,
-      money: Math.round(sellPriceNum * reduceNum * 100), // 单位：分（整数）
-      price: Math.round(sellPriceNum * 1000) / 10, // 单位：分（1位小数）
-      num: Math.round(reduceNum), // 确保是整数
-      track_type: 'reduce'
+    const response = await fetch('https://qixncbgvrkfjxopqqpiz.supabase.co/functions/v1/reduce-position', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${supabaseAnonKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        positionId: reduceForm.value.positionId,
+        stock: reduceForm.value.stock,
+        invt: reduceForm.value.invt,
+        name: reduceForm.value.stockName,
+        sellPrice: parseFloat(reduceForm.value.sellPrice),
+        reduceQuantity: parseFloat(reduceForm.value.reduceQuantity),
+        currentQuantity: reduceForm.value.currentQuantity,
+        currentCost: reduceForm.value.currentCost
+      })
     })
     
-    // 更新资金信息（减仓释放资金）
-    await updateMoneyInfo(sellPriceNum * reduceNum)
+    const result = await response.json()
     
-    // 再更新持仓（清仓时不删除记录，而是设置为0）
-    if (newQuantity === 0) {
-      // 完全清仓，将 quantity 和 cost 都设置为 0
-      await positionStore.updatePosition(positionId, 0, 0)
-      showToast('已清仓')
+    if (result.success) {
+      // 刷新持仓数据
+      await positionStore.fetchPositions()
+      showToast(result.message)
+      emit('success')
+      return true
     } else {
-      // 更新持股数量和成本价
-      await positionStore.updatePosition(positionId, newQuantity, reduceForm.value.newCost)
-      showToast('减仓成功')
+      showToast(result.error || '减仓失败')
+      return false
     }
-    
-    visible.value = false
-    emit('success')
   } catch (err) {
-    showToast('减仓失败')
+    console.error('减仓失败:', err)
+    showToast('减仓失败，请稍后重试')
+    return false
   }
 }
 
@@ -266,7 +191,7 @@ defineExpose({
     title="减仓"
     show-cancel-button
     confirm-button-color="#1890ff"
-    @confirm="confirmReduce"
+    :before-close="beforeCloseDialog"
   >
     <div class="dialog-content">
       <div class="reduce-info">
