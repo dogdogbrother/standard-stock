@@ -237,6 +237,7 @@ watch(visible, (newVal) => {
     v-model:show="visible"
     title="录入持股"
     show-cancel-button
+    confirm-button-color="#1890ff"
     :before-close="beforeCloseDialog"
   >
     <div class="dialog-content">

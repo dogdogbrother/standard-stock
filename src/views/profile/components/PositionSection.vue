@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { showToast } from 'vant'
-import { usePositionStore } from '@/stores/position'
+import { usePositionStore, type Position } from '@/stores/position'
 import PositionList from '@/components/PositionList.vue'
 import TrackHistoryButton from '@/components/TrackHistoryButton.vue'
 import AddPositionDialog from './AddPositionDialog.vue'
+import ReducePositionDialog from './ReducePositionDialog.vue'
 
 defineProps<{
   refreshing?: boolean
@@ -19,6 +20,7 @@ const positionStore = usePositionStore()
 const positionList = computed(() => positionStore.positionList)
 const positionLoading = computed(() => positionStore.loading)
 const showAddDialog = ref(false)
+const reduceDialogRef = ref<InstanceType<typeof ReducePositionDialog>>()
 
 const sortOrder = ref<'default' | 'desc' | 'asc'>('default')
 
@@ -81,9 +83,14 @@ const handleAddSuccess = async () => {
   emit('position-changed')
 }
 
+// 打开减仓对话框
+const handleReduce = (position: Position) => {
+  reduceDialogRef.value?.open(position)
+}
+
 // 减仓成功后刷新列表
 const handleReduceSuccess = () => {
-  // PositionList 的减仓操作已经通过 store 完成，store 内部会刷新
+  // ReducePositionDialog 的减仓操作已经通过 store 完成，store 内部会刷新
   // 只需要通知父组件刷新资金信息
   emit('position-changed')
 }
@@ -142,7 +149,7 @@ defineExpose({
       <PositionList 
         v-else-if="positionList.length > 0"
         :position-list="sortedPositionList"
-        @reduce-success="handleReduceSuccess"
+        @reduce="handleReduce"
       />
     </template>
     
@@ -150,6 +157,12 @@ defineExpose({
     <AddPositionDialog 
       v-model:visible="showAddDialog"
       @success="handleAddSuccess"
+    />
+    
+    <!-- 减仓对话框 -->
+    <ReducePositionDialog 
+      ref="reduceDialogRef"
+      @success="handleReduceSuccess"
     />
   </div>
 </template>

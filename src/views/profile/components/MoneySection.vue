@@ -152,6 +152,7 @@ defineExpose({
       v-model:show="showEditDialog"
       title="修正金额"
       show-cancel-button
+      confirm-button-color="#1890ff"
       @confirm="confirmEdit"
     >
       <div class="dialog-content">

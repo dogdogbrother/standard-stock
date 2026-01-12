@@ -199,6 +199,7 @@ const handleDialogShow = (value: boolean) => {
     @update:show="(value) => { handleDialogShow(value); emit('update:show', value) }"
     title="拉入伙伴"
     show-cancel-button
+    confirm-button-color="#1890ff"
     :before-close="beforeCloseDialog"
   >
     <div class="dialog-content">
