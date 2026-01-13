@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+// import { ref } from 'vue'
 
 // 机构数据（示例）
-const institutions = ref([
-  {
-    name: '机构示例',
-    code: 'INST001',
-    description: '这是一个机构示例'
-  }
-])
+// const institutions = ref([
+//   {
+//     name: '机构示例',
+//     code: 'INST001',
+//     description: '这是一个机构示例'
+//   }
+// ])
 
 </script>
 

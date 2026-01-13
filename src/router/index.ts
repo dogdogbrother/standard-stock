@@ -8,6 +8,7 @@ const Home = () => import('../views/home/index.vue')
 const Login = () => import('../views/Login.vue')
 const AppLayout = () => import('../views/AppLayout.vue')
 const Watchlist = () => import('../views/watchlist/index.vue')
+const Institution = () => import('../views/institution/index.vue')
 const Buddy = () => import('../views/buddy/index.vue')
 const Profile = () => import('../views/profile/index.vue')
 const Search = () => import('../views/Search.vue')
@@ -69,6 +70,11 @@ export const router = createRouter({
           path: 'watchlist',
           name: 'Watchlist',
           component: Watchlist,
+        },
+        {
+          path: 'institution',
+          name: 'Institution',
+          component: Institution,
         },
         {
           path: 'buddy',
