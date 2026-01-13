@@ -465,7 +465,7 @@ onMounted(async () => {
 
 :deep(.van-pull-refresh__track) {
   padding: 10px;
-  padding-bottom: 20px; // 增加底部间距
+  padding-bottom: 0px; // tabbar 已有 safe-area 适配，无需额外间距
 }
 
 .loading-state,
