@@ -1,0 +1,12 @@
+# AKShare - 金融数据获取库
+akshare>=1.14.0
+
+# HTTP 请求库（用于访问 Supabase REST API）
+requests>=2.28.0
+
+# 数据处理
+pandas>=2.0.0
+
+# 环境变量管理
+python-dotenv>=1.0.0
+
